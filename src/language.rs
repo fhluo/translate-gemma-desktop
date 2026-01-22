@@ -1,5 +1,6 @@
 use std::sync::LazyLock;
 
+#[derive(Debug, Copy, Clone)]
 pub struct Language {
     pub code: &'static str,
     pub name: &'static str,
