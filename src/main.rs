@@ -15,10 +15,11 @@ use crate::config::{Config, ConfigEvent};
 use crate::language_selector::LanguageSelector;
 use crate::locale_selector::{ChangeLocale, LocaleSelector};
 use gpui::{
-    div, prelude::*, px, size, Application, Bounds, ClickEvent, Entity, FocusHandle,
-    Window, WindowBounds, WindowOptions,
+    div, prelude::*, px, size, Application, Bounds, ClickEvent, Entity,
+    EntityInputHandler, FocusHandle, Window, WindowBounds, WindowOptions,
 };
 use gpui_component::button::{Button, ButtonVariants};
+use gpui_component::input::{Input, InputState};
 use gpui_component::{gray_600, Root, TitleBar};
 
 i18n!("locales", fallback = "en");
@@ -30,6 +31,9 @@ struct TranslateApp {
 
     source_language_selector: Entity<LanguageSelector>,
     target_language_selector: Entity<LanguageSelector>,
+
+    input_editor: Entity<InputState>,
+    output_editor: Entity<InputState>,
 
     focus_handle: FocusHandle,
 }
@@ -61,11 +65,16 @@ impl TranslateApp {
         })
         .detach();
 
+        let input_editor = cx.new(|cx| InputState::new(window, cx).multi_line(true));
+        let output_editor = cx.new(|cx| InputState::new(window, cx).multi_line(true));
+
         TranslateApp {
             config: Self::setup_config(window, cx),
             locale_selector,
             source_language_selector,
             target_language_selector,
+            input_editor,
+            output_editor,
             focus_handle,
         }
     }
@@ -177,9 +186,13 @@ impl Render for TranslateApp {
             .child(
                 div()
                     .w_full()
-                    .h_full()
                     .flex()
                     .flex_row()
+                    .items_center()
+                    .justify_center()
+                    .py_2()
+                    .px_3()
+                    .gap_1()
                     .child(self.source_language_selector.clone())
                     .child(
                         Button::new("swap-button")
@@ -190,6 +203,18 @@ impl Render for TranslateApp {
                             .on_click(cx.listener(Self::on_click_swap_languages)),
                     )
                     .child(self.target_language_selector.clone()),
+            )
+            .child(
+                div()
+                    .w_full()
+                    .h_full()
+                    .flex()
+                    .flex_row()
+                    .px_3()
+                    .py_1()
+                    .gap_3()
+                    .child(Input::new(&self.input_editor).flex_1())
+                    .child(Input::new(&self.output_editor).flex_1()),
             )
     }
 }
