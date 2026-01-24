@@ -15,11 +15,11 @@ use crate::config::{Config, ConfigEvent};
 use crate::language_selector::LanguageSelector;
 use crate::locale_selector::{ChangeLocale, LocaleSelector};
 use gpui::{
-    div, prelude::*, px, size, Application, Bounds, ClickEvent, Entity,
-    FocusHandle, Focusable, Window, WindowBounds, WindowOptions,
+    div, prelude::*, px, size, Application, Bounds, ClickEvent, Entity, FocusHandle,
+    Window, WindowBounds, WindowOptions,
 };
 use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::{gray_600, Root, Sizable, TitleBar};
+use gpui_component::{gray_600, Root, TitleBar};
 
 i18n!("locales", fallback = "en");
 
@@ -186,7 +186,7 @@ impl Render for TranslateApp {
                             .ghost()
                             .icon(Icons::ArrowRightLeft)
                             .text_color(gray_600())
-                            .tooltip("Swap languages")
+                            .tooltip(t!("swap-languages"))
                             .on_click(cx.listener(Self::on_click_swap_languages)),
                     )
                     .child(self.target_language_selector.clone()),
