@@ -1,9 +1,9 @@
 use crate::language::{Language, LANGUAGES};
-use gpui::{prelude::*, AppContext, Entity, SharedString, Window};
-use gpui_component::select::{SearchableVec, Select, SelectItem, SelectState};
-use gpui_component::IconName;
+use gpui::{prelude::*, AppContext, Entity, EventEmitter, SharedString, Window};
+use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectItem, SelectState};
+use gpui_component::{IconName, IndexPath};
 use icu_experimental::displaynames::LocaleDisplayNamesFormatter;
-use icu_locale::Locale;
+use icu_locale::{locale, Locale};
 
 #[derive(Debug, Clone)]
 pub struct LanguageItem {
@@ -17,6 +17,25 @@ impl LanguageItem {
             language,
             display_name: display_name.into(),
         }
+    }
+
+    pub fn all() -> Vec<LanguageItem> {
+        let locale = rust_i18n::locale()
+            .parse::<Locale>()
+            .unwrap_or_else(|_| locale!("en"));
+
+        let display_name = LocaleDisplayNamesFormatter::try_new(locale.into(), Default::default())
+            .expect("failed to load compiled data");
+
+        LANGUAGES
+            .iter()
+            .cloned()
+            .map(|lang| {
+                let locale = lang.code.parse::<Locale>().expect("failed to parse locale");
+
+                LanguageItem::new(lang, display_name.of(&locale).into_owned())
+            })
+            .collect::<Vec<_>>()
     }
 }
 
@@ -40,30 +59,54 @@ impl SelectItem for LanguageItem {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct LanguageSelector {
-    pub state: Entity<SelectState<SearchableVec<LanguageItem>>>,
+    state: Entity<SelectState<SearchableVec<LanguageItem>>>,
 }
 
 impl LanguageSelector {
-    pub fn new(locale: Locale, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let display_name = LocaleDisplayNamesFormatter::try_new(locale.into(), Default::default())
-            .expect("failed to load compiled data");
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let state = cx.new(|cx| {
+            SelectState::new(SearchableVec::new(LanguageItem::all()), None, window, cx)
+                .searchable(true)
+        });
 
-        let items = LANGUAGES
-            .iter()
-            .cloned()
-            .map(|lang| {
-                let locale = lang.code.parse::<Locale>().expect("failed to parse locale");
-
-                LanguageItem::new(lang, display_name.of(&locale).into_owned())
-            })
-            .collect::<Vec<_>>();
-
-        let items = SearchableVec::new(items);
-
-        let state = cx.new(|cx| SelectState::new(items, None, window, cx).searchable(true));
+        cx.subscribe(
+            &state,
+            |_, _, event: &SelectEvent<SearchableVec<LanguageItem>>, cx| match event {
+                SelectEvent::Confirm(lang) => {
+                    cx.emit(LanguageSelectEvent(lang.map(|lang| lang.code)))
+                }
+            },
+        )
+        .detach();
 
         LanguageSelector { state }
+    }
+
+    pub fn update_items(&self, window: &mut Window, cx: &mut Context<Self>) {
+        self.state.update(cx, |this, cx| {
+            this.set_items(SearchableVec::new(LanguageItem::all()), window, cx)
+        })
+    }
+
+    pub fn selected_language(&self, cx: &mut Context<Self>) -> Option<&'static str> {
+        self.state.read(cx).selected_value().map(|&lang| lang.code)
+    }
+
+    pub fn set_selected_language(
+        &self,
+        language: impl AsRef<str>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let index = LANGUAGES
+            .iter()
+            .position(|item| item.code == language.as_ref())
+            .map(IndexPath::new);
+
+        self.state
+            .update(cx, |state, cx| state.set_selected_index(index, window, cx));
     }
 }
 
@@ -72,3 +115,13 @@ impl Render for LanguageSelector {
         Select::new(&self.state).icon(IconName::Search)
     }
 }
+
+pub struct LanguageSelectEvent(Option<&'static str>);
+
+impl LanguageSelectEvent {
+    pub fn value(&self) -> Option<&'static str> {
+        self.0
+    }
+}
+
+impl EventEmitter<LanguageSelectEvent> for LanguageSelector {}
