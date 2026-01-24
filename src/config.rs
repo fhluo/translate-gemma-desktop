@@ -3,6 +3,7 @@ use icu_locale::fallback::{LocaleFallbackConfig, LocaleFallbackPriority};
 use icu_locale::{locale, DataLocale, Locale, LocaleFallbacker};
 use rust_i18n::set_locale;
 use serde::{Deserialize, Serialize};
+use std::mem;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -113,7 +114,9 @@ impl Config {
     pub fn set_source_language(&mut self, language: impl Into<String>, cx: &mut Context<Self>) {
         self.source_language = Some(language.into());
 
-        cx.emit(ConfigEvent::SourceLanguageChange);
+        cx.emit(ConfigEvent::SourceLanguageChange(
+            self.source_language.clone(),
+        ));
     }
 
     pub fn get_target_language(&self) -> Option<&String> {
@@ -123,14 +126,27 @@ impl Config {
     pub fn set_target_language(&mut self, language: impl Into<String>, cx: &mut Context<Self>) {
         self.target_language = Some(language.into());
 
-        cx.emit(ConfigEvent::TargetLanguageChange);
+        cx.emit(ConfigEvent::TargetLanguageChange(
+            self.target_language.clone(),
+        ));
+    }
+
+    pub fn swap_languages(&mut self, cx: &mut Context<Self>) {
+        mem::swap(&mut self.source_language, &mut self.target_language);
+
+        cx.emit(ConfigEvent::SourceLanguageChange(
+            self.source_language.clone(),
+        ));
+        cx.emit(ConfigEvent::TargetLanguageChange(
+            self.target_language.clone(),
+        ));
     }
 }
 
 pub enum ConfigEvent {
     LocaleChange,
-    SourceLanguageChange,
-    TargetLanguageChange,
+    SourceLanguageChange(Option<String>),
+    TargetLanguageChange(Option<String>),
 }
 
 impl EventEmitter<ConfigEvent> for Config {}

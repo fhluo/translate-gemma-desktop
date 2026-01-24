@@ -28,6 +28,7 @@ impl AssetSource for Assets {
 
 #[derive(Copy, Clone)]
 pub enum Icons {
+    ArrowRightLeft,
     Clipboard,
     Languages,
     Save,
@@ -38,6 +39,7 @@ pub enum Icons {
 impl IconNamed for Icons {
     fn path(self) -> SharedString {
         match self {
+            Icons::ArrowRightLeft => "icons/arrow-right-left.svg",
             Icons::Clipboard => "icons/clipboard.svg",
             Icons::Languages => "icons/languages.svg",
             Icons::Save => "icons/save.svg",

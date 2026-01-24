@@ -10,15 +10,16 @@ mod language_selector;
 mod locale_selector;
 mod prompt;
 
-use crate::assets::Assets;
+use crate::assets::{Assets, Icons};
 use crate::config::{Config, ConfigEvent};
 use crate::language_selector::LanguageSelector;
 use crate::locale_selector::{ChangeLocale, LocaleSelector};
 use gpui::{
-    div, prelude::*, px, size, Application, Bounds, Entity, FocusHandle, Focusable,
-    Window, WindowBounds, WindowOptions,
+    div, prelude::*, px, size, Application, Bounds, ClickEvent, Entity,
+    FocusHandle, Focusable, Window, WindowBounds, WindowOptions,
 };
-use gpui_component::{Root, TitleBar};
+use gpui_component::button::{Button, ButtonVariants};
+use gpui_component::{gray_600, Root, Sizable, TitleBar};
 
 i18n!("locales", fallback = "en");
 
@@ -113,7 +114,20 @@ impl TranslateApp {
                 });
                 window.refresh();
             }
-            _ => {}
+            ConfigEvent::SourceLanguageChange(language) => {
+                if let Some(language) = language {
+                    this.source_language_selector.update(cx, |this, cx| {
+                        this.set_selected_language(language, window, cx);
+                    });
+                }
+            }
+            ConfigEvent::TargetLanguageChange(language) => {
+                if let Some(language) = language {
+                    this.target_language_selector.update(cx, |this, cx| {
+                        this.set_selected_language(language, window, cx);
+                    });
+                }
+            }
         })
         .detach();
 
@@ -129,6 +143,12 @@ impl TranslateApp {
         self.config.update(cx, |this, cx| {
             this.set_locale(locale, cx);
         });
+    }
+
+    fn on_click_swap_languages(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
+        self.config.update(cx, |this, cx| {
+            this.swap_languages(cx);
+        })
     }
 }
 
@@ -165,6 +185,14 @@ impl Render for TranslateApp {
                     .flex()
                     .flex_row()
                     .child(self.source_language_selector.clone())
+                    .child(
+                        Button::new("swap-button")
+                            .ghost()
+                            .icon(Icons::ArrowRightLeft)
+                            .text_color(gray_600())
+                            .tooltip("Swap languages")
+                            .on_click(cx.listener(Self::on_click_swap_languages)),
+                    )
                     .child(self.target_language_selector.clone()),
             )
     }
