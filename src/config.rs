@@ -10,8 +10,8 @@ pub struct Config {
     app_name: String,
 
     locale: Option<String>,
-    source_language_code: Option<String>,
-    target_language_code: Option<String>,
+    source_language: Option<String>,
+    target_language: Option<String>,
 }
 
 impl Default for Config {
@@ -19,8 +19,8 @@ impl Default for Config {
         Config {
             app_name: env!("CARGO_PKG_NAME").to_string(),
             locale: None,
-            source_language_code: Some("zh-Hans".to_owned()),
-            target_language_code: Some("en".to_owned()),
+            source_language: Some("zh-Hans".to_owned()),
+            target_language: Some("en".to_owned()),
         }
     }
 }
@@ -105,10 +105,32 @@ impl Config {
 
         cx.emit(ConfigEvent::LocaleChange);
     }
+
+    pub fn get_source_language(&self) -> Option<&String> {
+        self.source_language.as_ref()
+    }
+
+    pub fn set_source_language(&mut self, language: impl Into<String>, cx: &mut Context<Self>) {
+        self.source_language = Some(language.into());
+
+        cx.emit(ConfigEvent::SourceLanguageChange);
+    }
+
+    pub fn get_target_language(&self) -> Option<&String> {
+        self.target_language.as_ref()
+    }
+
+    pub fn set_target_language(&mut self, language: impl Into<String>, cx: &mut Context<Self>) {
+        self.target_language = Some(language.into());
+
+        cx.emit(ConfigEvent::TargetLanguageChange);
+    }
 }
 
 pub enum ConfigEvent {
     LocaleChange,
+    SourceLanguageChange,
+    TargetLanguageChange,
 }
 
 impl EventEmitter<ConfigEvent> for Config {}
