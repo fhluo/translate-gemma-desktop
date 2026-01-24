@@ -2,6 +2,7 @@ mod language;
 mod prompt;
 
 use gpui::{div, prelude::*, px, size, Application, Bounds, Window, WindowBounds, WindowOptions};
+use crate::assets::Assets;
 use gpui_component::{Root, TitleBar};
 
 struct TranslateGemmaDesktop {}
@@ -13,7 +14,7 @@ impl Render for TranslateGemmaDesktop {
 }
 
 fn main() -> anyhow::Result<()> {
-    let app = Application::new().with_assets(gpui_component_assets::Assets);
+    let app = Application::new().with_assets(Assets);
 
     app.run(move |cx| {
         gpui_component::init(cx);
