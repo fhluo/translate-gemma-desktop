@@ -79,7 +79,6 @@ impl LocaleSelector {
 impl Render for LocaleSelector {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         Button::new("language-button")
-            .track_focus(&self.focus_handle)
             .small()
             .ghost()
             .icon(Icons::Languages)
