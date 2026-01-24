@@ -161,21 +161,17 @@ impl Render for TranslateApp {
             .flex_col()
             .child(
                 TitleBar::new().items_center().child(
-                    div()
-                        .track_focus(&self.focus_handle)
-                        .on_action(cx.listener(Self::on_action_change_locale))
-                        .flex()
-                        .flex_row()
-                        .flex_1()
-                        .child(
-                            div()
-                                .flex()
-                                .flex_row()
-                                .h_full()
-                                .ml_auto()
-                                .mr_3()
-                                .child(self.locale_selector.clone()),
-                        ),
+                    div().flex().flex_row().flex_1().child(
+                        div()
+                            .track_focus(&self.focus_handle)
+                            .on_action(cx.listener(Self::on_action_change_locale))
+                            .flex()
+                            .flex_row()
+                            .h_full()
+                            .ml_auto()
+                            .mr_3()
+                            .child(self.locale_selector.clone()),
+                    ),
                 ),
             )
             .child(
