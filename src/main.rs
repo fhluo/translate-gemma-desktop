@@ -4,12 +4,14 @@
 extern crate rust_i18n;
 
 mod assets;
+mod config;
 mod language;
 mod language_selector;
 mod locale_selector;
 mod prompt;
 
 use crate::assets::Assets;
+use crate::config::{Config, ConfigEvent};
 use crate::language_selector::LanguageSelector;
 use crate::locale_selector::{ChangeLocale, LocaleSelector};
 use gpui::{
@@ -18,11 +20,12 @@ use gpui::{
 };
 use gpui_component::{Root, TitleBar};
 use icu_locale::locale;
-use rust_i18n::set_locale;
 
 i18n!("locales", fallback = "en");
 
 struct TranslateApp {
+    config: Entity<Config>,
+
     locale_selector: Entity<LocaleSelector>,
 
     source_language_selector: Entity<LanguageSelector>,
@@ -44,6 +47,7 @@ impl TranslateApp {
             cx.new(|cx| LanguageSelector::new(locale!("zh-Hans"), window, cx));
 
         TranslateApp {
+            config: Self::setup_config(window, cx),
             locale_selector,
             source_language_selector,
             target_language_selector,
@@ -51,15 +55,41 @@ impl TranslateApp {
         }
     }
 
+    fn setup_config(window: &mut Window, cx: &mut Context<Self>) -> Entity<Config> {
+        let config = cx.new(|_| Config::load("translate-gemma-desktop"));
+
+        cx.observe_new(|this: &mut Self, _, cx| {
+            this.config.update(cx, |this, cx| {
+                this.init(cx);
+            });
+        })
+        .detach();
+
+        cx.on_release(|this, cx| {
+            this.config.update(cx, |this, _| {
+                this.store();
+            });
+        })
+        .detach();
+
+        cx.subscribe_in(&config, window, |this, _, event, window, cx| match event {
+            ConfigEvent::LocaleChange => {
+                window.refresh();
+            }
+        })
+        .detach();
+
+        config
+    }
+
     fn on_action_change_locale(
         &mut self,
         ChangeLocale(locale): &ChangeLocale,
-        window: &mut Window,
+        _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.locale_selector.update(cx, |_, _| {
-            set_locale(locale);
-            window.refresh();
+        self.config.update(cx, |this, cx| {
+            this.set_locale(locale, cx);
         });
     }
 }
