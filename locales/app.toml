@@ -1,0 +1,5 @@
+_version = 2
+
+[language]
+en = "Language"
+zh-Hans = "语言"
