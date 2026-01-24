@@ -19,7 +19,6 @@ use gpui::{
     Window, WindowBounds, WindowOptions,
 };
 use gpui_component::{Root, TitleBar};
-use icu_locale::locale;
 
 i18n!("locales", fallback = "en");
 
@@ -40,11 +39,26 @@ impl TranslateApp {
 
         let locale_selector = cx.new(|_| LocaleSelector::new(focus_handle.clone()));
 
-        let source_language_selector =
-            cx.new(|cx| LanguageSelector::new(locale!("zh-Hans"), window, cx));
+        let source_language_selector = cx.new(|cx| LanguageSelector::new(window, cx));
 
-        let target_language_selector =
-            cx.new(|cx| LanguageSelector::new(locale!("zh-Hans"), window, cx));
+        cx.subscribe(&source_language_selector, |this, _, event, cx| {
+            if let Some(language) = event.value() {
+                this.config.update(cx, |this, cx| {
+                    this.set_source_language(language, cx);
+                })
+            }
+        })
+        .detach();
+
+        let target_language_selector = cx.new(|cx| LanguageSelector::new(window, cx));
+        cx.subscribe(&target_language_selector, |this, _, event, cx| {
+            if let Some(language) = event.value() {
+                this.config.update(cx, |this, cx| {
+                    this.set_target_language(language, cx);
+                })
+            }
+        })
+        .detach();
 
         TranslateApp {
             config: Self::setup_config(window, cx),
@@ -58,9 +72,26 @@ impl TranslateApp {
     fn setup_config(window: &mut Window, cx: &mut Context<Self>) -> Entity<Config> {
         let config = cx.new(|_| Config::load("translate-gemma-desktop"));
 
-        cx.observe_new(|this: &mut Self, _, cx| {
+        cx.observe_new(|this: &mut Self, window, cx| {
+            let source_language_selector = this.source_language_selector.clone();
+            let target_language_selector = this.target_language_selector.clone();
+
             this.config.update(cx, |this, cx| {
                 this.init(cx);
+
+                if let Some(window) = window {
+                    if let Some(language) = this.get_source_language() {
+                        source_language_selector.update(cx, |this, cx| {
+                            this.set_selected_language(language, window, cx)
+                        });
+                    }
+
+                    if let Some(language) = this.get_target_language() {
+                        target_language_selector.update(cx, |this, cx| {
+                            this.set_selected_language(language, window, cx)
+                        })
+                    }
+                }
             });
         })
         .detach();
@@ -74,8 +105,15 @@ impl TranslateApp {
 
         cx.subscribe_in(&config, window, |this, _, event, window, cx| match event {
             ConfigEvent::LocaleChange => {
+                this.source_language_selector.update(cx, |this, cx| {
+                    this.update_items(window, cx);
+                });
+                this.target_language_selector.update(cx, |this, cx| {
+                    this.update_items(window, cx);
+                });
                 window.refresh();
             }
+            _ => {}
         })
         .detach();
 
