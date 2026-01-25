@@ -134,12 +134,10 @@ impl Config {
     pub fn swap_languages(&mut self, cx: &mut Context<Self>) {
         mem::swap(&mut self.source_language, &mut self.target_language);
 
-        cx.emit(ConfigEvent::SourceLanguageChange(
-            self.source_language.clone(),
-        ));
-        cx.emit(ConfigEvent::TargetLanguageChange(
-            self.target_language.clone(),
-        ));
+        cx.emit(ConfigEvent::SwapLanguages {
+            source_language: self.source_language.clone(),
+            target_language: self.target_language.clone(),
+        });
     }
 }
 
@@ -147,6 +145,10 @@ pub enum ConfigEvent {
     LocaleChange,
     SourceLanguageChange(Option<String>),
     TargetLanguageChange(Option<String>),
+    SwapLanguages {
+        source_language: Option<String>,
+        target_language: Option<String>,
+    },
 }
 
 impl EventEmitter<ConfigEvent> for Config {}

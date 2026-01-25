@@ -137,6 +137,22 @@ impl TranslateApp {
                     });
                 }
             }
+            ConfigEvent::SwapLanguages {
+                source_language,
+                target_language,
+            } => {
+                if let Some(language) = source_language {
+                    this.source_language_selector.update(cx, |this, cx| {
+                        this.set_selected_language(language, window, cx);
+                    });
+                }
+
+                if let Some(language) = target_language {
+                    this.target_language_selector.update(cx, |this, cx| {
+                        this.set_selected_language(language, window, cx);
+                    });
+                }
+            }
         })
         .detach();
 
