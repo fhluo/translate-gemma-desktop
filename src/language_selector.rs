@@ -1,5 +1,5 @@
 use crate::language::{Language, LANGUAGES};
-use gpui::{prelude::*, AppContext, Entity, EventEmitter, SharedString, Window};
+use gpui::{prelude::*, App, AppContext, Entity, EventEmitter, SharedString, Window};
 use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectItem, SelectState};
 use gpui_component::{IconName, IndexPath};
 use icu_experimental::displaynames::LocaleDisplayNamesFormatter;
@@ -75,7 +75,7 @@ impl LanguageSelector {
             &state,
             |_, _, event: &SelectEvent<SearchableVec<LanguageItem>>, cx| match event {
                 SelectEvent::Confirm(lang) => {
-                    cx.emit(LanguageSelectEvent(lang.map(|lang| lang.code)))
+                    cx.emit(LanguageSelectEvent(lang.map(|lang| lang.clone())))
                 }
             },
         )
@@ -90,19 +90,19 @@ impl LanguageSelector {
         })
     }
 
-    pub fn selected_language(&self, cx: &mut Context<Self>) -> Option<&'static str> {
-        self.state.read(cx).selected_value().map(|&lang| lang.code)
+    pub fn selected_language(&self, cx: &App) -> Option<Language> {
+        self.state.read(cx).selected_value().cloned()
     }
 
     pub fn set_selected_language(
         &self,
-        language: impl AsRef<str>,
+        language_code: impl AsRef<str>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let index = LANGUAGES
             .iter()
-            .position(|item| item.code == language.as_ref())
+            .position(|item| item.code == language_code.as_ref())
             .map(IndexPath::new);
 
         self.state
@@ -116,10 +116,10 @@ impl Render for LanguageSelector {
     }
 }
 
-pub struct LanguageSelectEvent(Option<&'static str>);
+pub struct LanguageSelectEvent(Option<Language>);
 
 impl LanguageSelectEvent {
-    pub fn value(&self) -> Option<&'static str> {
+    pub fn value(&self) -> Option<Language> {
         self.0
     }
 }

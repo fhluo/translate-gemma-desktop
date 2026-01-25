@@ -49,7 +49,7 @@ impl TranslateApp {
         cx.subscribe(&source_language_selector, |this, _, event, cx| {
             if let Some(language) = event.value() {
                 this.config.update(cx, |this, cx| {
-                    this.set_source_language(language, cx);
+                    this.set_source_language(language.code, cx);
                 })
             }
         })
@@ -59,7 +59,7 @@ impl TranslateApp {
         cx.subscribe(&target_language_selector, |this, _, event, cx| {
             if let Some(language) = event.value() {
                 this.config.update(cx, |this, cx| {
-                    this.set_target_language(language, cx);
+                    this.set_target_language(language.code, cx);
                 })
             }
         })
