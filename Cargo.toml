@@ -10,11 +10,18 @@ gpui-component-assets = { git = "https://github.com/longbridge/gpui-component" }
 rust-i18n = "3.1"
 sys-locale = "0.3"
 icu_locale = { version = "2.1", features = ["compiled_data", "serde"] }
-icu_experimental = { version = "0.4", features = ["compiled_data"]}
+icu_experimental = { version = "0.4", features = ["compiled_data"] }
 confy = { version = "2.0" }
 rust-embed = "8.11"
 dirs = "6.0"
 unicode-segmentation = "1.12"
+reqwest = { version = "0.13", features = ["json", "stream"] }
+tokio = { version = "1.49", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+futures-util = "0.3"
+url = "2.5"
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_with = "3.16"
 schemars = { version = "1.2", features = ["derive"] }
 anyhow = "1.0"
