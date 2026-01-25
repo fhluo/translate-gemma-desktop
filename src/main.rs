@@ -8,19 +8,24 @@ mod config;
 mod language;
 mod language_selector;
 mod locale_selector;
+mod ollama;
 mod prompt;
 
 use crate::assets::{Assets, Icons};
 use crate::config::{Config, ConfigEvent};
 use crate::language_selector::LanguageSelector;
 use crate::locale_selector::{ChangeLocale, LocaleSelector};
+use crate::ollama::{generate, GenerateRequest};
+use crate::prompt::Prompt;
+use futures_util::StreamExt;
 use gpui::{
-    div, prelude::*, px, size, Application, Bounds, ClickEvent, Entity,
-    EntityInputHandler, FocusHandle, Window, WindowBounds, WindowOptions,
+    div, prelude::*, px, size, App, Application, Bounds, ClickEvent, Entity,
+    FocusHandle, Task, Window, WindowBounds, WindowOptions,
 };
 use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::input::{Input, InputState};
+use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::{gray_600, Root, TitleBar};
+use std::time::Duration;
 
 i18n!("locales", fallback = "en");
 
@@ -36,6 +41,8 @@ struct TranslateApp {
     output_editor: Entity<InputState>,
 
     focus_handle: FocusHandle,
+
+    generate: Option<Task<anyhow::Result<()>>>,
 }
 
 impl TranslateApp {
@@ -68,6 +75,9 @@ impl TranslateApp {
         let input_editor = cx.new(|cx| InputState::new(window, cx).multi_line(true));
         let output_editor = cx.new(|cx| InputState::new(window, cx).multi_line(true));
 
+        cx.subscribe_in(&input_editor, window, Self::on_input_event)
+            .detach();
+
         TranslateApp {
             config: Self::setup_config(window, cx),
             locale_selector,
@@ -76,6 +86,7 @@ impl TranslateApp {
             input_editor,
             output_editor,
             focus_handle,
+            generate: None,
         }
     }
 
@@ -128,6 +139,7 @@ impl TranslateApp {
                     this.source_language_selector.update(cx, |this, cx| {
                         this.set_selected_language(language, window, cx);
                     });
+                    this.translate(window, cx);
                 }
             }
             ConfigEvent::TargetLanguageChange(language) => {
@@ -135,6 +147,7 @@ impl TranslateApp {
                     this.target_language_selector.update(cx, |this, cx| {
                         this.set_selected_language(language, window, cx);
                     });
+                    this.translate(window, cx);
                 }
             }
             ConfigEvent::SwapLanguages {
@@ -152,11 +165,74 @@ impl TranslateApp {
                         this.set_selected_language(language, window, cx);
                     });
                 }
+
+                this.translate(window, cx);
             }
         })
         .detach();
 
         config
+    }
+
+    fn on_input_event(
+        &mut self,
+        _: &Entity<InputState>,
+        event: &InputEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if matches!(event, InputEvent::Change) {
+            self.translate(window, cx);
+        }
+    }
+
+    fn prompt(&mut self, cx: &App) -> Option<Prompt> {
+        let source_language = self.source_language_selector.read(cx).selected_language(cx);
+        let target_language = self.target_language_selector.read(cx).selected_language(cx);
+
+        if let (Some(source_language), Some(target_language)) = (source_language, target_language) {
+            Some(Prompt::new(
+                source_language,
+                target_language,
+                self.input_editor.read(cx).value(),
+            ))
+        } else {
+            None
+        }
+    }
+
+    fn translate(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(prompt) = self.prompt(cx) {
+            let output_editor = self.output_editor.clone();
+            self.generate = Some(cx.spawn_in(window, async move |_, window| {
+                window
+                    .background_executor()
+                    .timer(Duration::from_millis(500))
+                    .await;
+
+                let req = GenerateRequest::builder()
+                    .model("translategemma:4b")
+                    .stream(true)
+                    .prompt(prompt.to_string())
+                    .build();
+
+                let mut result = generate(req).await?;
+
+                output_editor.update_in(window, |state, window, cx| {
+                    state.set_value("", window, cx);
+                })?;
+
+                while let Some(item) = result.next().await {
+                    let response = item?.response;
+
+                    output_editor.update_in(window, |state, window, cx| {
+                        state.insert(response, window, cx);
+                    })?;
+                }
+
+                Ok::<_, anyhow::Error>(())
+            }));
+        }
     }
 
     fn on_action_change_locale(
