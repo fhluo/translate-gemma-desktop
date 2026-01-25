@@ -1,7 +1,7 @@
 pub use crate::ollama::types::{GenerateRequest, GenerateResponse};
 use anyhow::anyhow;
 use futures_util::stream::BoxStream;
-use futures_util::{StreamExt, TryStreamExt};
+use futures_util::{stream, StreamExt, TryStreamExt};
 use reqwest::header::ACCEPT;
 use reqwest::RequestBuilder;
 use serde::Deserialize;
@@ -80,11 +80,18 @@ impl Client {
     ) -> anyhow::Result<BoxStream<'static, anyhow::Result<GenerateResponse>>> {
         let request = self.post("/api/generate");
 
+        let streaming = generate_request.stream.is_none_or(|stream| stream);
+        let accept = if streaming {
+            "application/x-ndjson"
+        } else {
+            "application/json"
+        };
+
         let resp = self
             .handle
             .spawn(async move {
                 request
-                    .header(ACCEPT, "application/x-ndjson")
+                    .header(ACCEPT, accept)
                     .json(&generate_request)
                     .send()
                     .await
@@ -95,6 +102,11 @@ impl Client {
         if !status_code.is_success() {
             let text = resp.text().await?;
             anyhow::bail!("{}: {}", status_code, text);
+        }
+
+        if !streaming {
+            let result = resp.json::<GenerateResponse>().await?;
+            return Ok(stream::once(async move { Ok(result) }).boxed());
         }
 
         let stream = resp

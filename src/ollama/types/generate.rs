@@ -12,6 +12,7 @@ pub struct GenerateRequest {
     pub images: Option<Vec<Vec<u8>>>,
     pub format: Option<Format>,
     pub system: Option<String>,
+    /// Streaming is enabled by default.
     pub stream: Option<bool>,
     /// Reasoning control: boolean toggle or effort level.
     #[serde(rename = "think")]
