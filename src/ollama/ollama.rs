@@ -1,4 +1,4 @@
-pub use crate::ollama::types::{GenerateRequest, GenerateResponse};
+pub use crate::ollama::types::*;
 use anyhow::anyhow;
 use futures_util::stream::BoxStream;
 use futures_util::{stream, StreamExt, TryStreamExt};
@@ -66,12 +66,30 @@ impl Client {
 
         Version::parse(&version.version).map_err(|err| anyhow!(err))
     }
+
+    pub async fn list(&self) -> anyhow::Result<Vec<Model>> {
+        let request = self.get("api/tags");
+
+        let models = self
+            .handle
+            .spawn(async { request.send().await })
+            .await??
+            .json::<ListResponse>()
+            .await?
+            .models;
+
+        Ok(models)
+    }
 }
 
 static DEFAULT_CLIENT: LazyLock<Client> = LazyLock::new(|| Client::default());
 
 pub async fn version() -> anyhow::Result<Version> {
     DEFAULT_CLIENT.version().await
+}
+
+pub async fn list() -> anyhow::Result<Vec<Model>> {
+    DEFAULT_CLIENT.list().await
 }
 
 impl Client {
@@ -144,7 +162,13 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_version() {
-        println!("{:?}", version().await);
+        println!("{:#?}", version().await);
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_list() {
+        println!("{:#?}", list().await);
     }
 
     #[tokio::test]
