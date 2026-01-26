@@ -189,13 +189,12 @@ impl TranslateApp {
     fn prompt(&mut self, cx: &App) -> Option<Prompt> {
         let source_language = self.source_language_selector.read(cx).selected_language(cx);
         let target_language = self.target_language_selector.read(cx).selected_language(cx);
+        let text = self.input_editor.read(cx).value();
 
-        if let (Some(source_language), Some(target_language)) = (source_language, target_language) {
-            Some(Prompt::new(
-                source_language,
-                target_language,
-                self.input_editor.read(cx).value(),
-            ))
+        if let (Some(source_language), Some(target_language)) = (source_language, target_language)
+            && !text.is_empty()
+        {
+            Some(Prompt::new(source_language, target_language, text))
         } else {
             None
         }
