@@ -1,7 +1,7 @@
 use crate::language::{Language, LANGUAGES};
 use gpui::{prelude::*, App, AppContext, Entity, EventEmitter, SharedString, Window};
 use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectItem, SelectState};
-use gpui_component::{IconName, IndexPath};
+use gpui_component::IconName;
 use icu_experimental::displaynames::LocaleDisplayNamesFormatter;
 use icu_locale::{locale, Locale};
 
@@ -113,13 +113,14 @@ impl LanguageSelector {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let index = LANGUAGES
+        let lang = LANGUAGES
             .iter()
-            .position(|item| item.code == language_code.as_ref())
-            .map(IndexPath::new);
+            .find(|lang| lang.code == language_code.as_ref());
 
-        self.state
-            .update(cx, |state, cx| state.set_selected_index(index, window, cx));
+        if let Some(lang) = lang {
+            self.state
+                .update(cx, |state, cx| state.set_selected_value(lang, window, cx));
+        }
     }
 }
 
