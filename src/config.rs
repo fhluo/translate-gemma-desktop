@@ -13,6 +13,8 @@ pub struct Config {
     locale: Option<String>,
     source_language: Option<String>,
     target_language: Option<String>,
+
+    model: Option<String>,
 }
 
 impl Default for Config {
@@ -22,6 +24,7 @@ impl Default for Config {
             locale: None,
             source_language: Some("zh-Hans".to_owned()),
             target_language: Some("en".to_owned()),
+            model: None,
         }
     }
 }
@@ -139,6 +142,16 @@ impl Config {
             target_language: self.target_language.clone(),
         });
     }
+
+    pub fn model(&self) -> Option<&String> {
+        self.model.as_ref()
+    }
+
+    pub fn set_model(&mut self, model: impl Into<String>, cx: &mut Context<Self>) {
+        self.model = Some(model.into());
+
+        cx.emit(ConfigEvent::ModelChange);
+    }
 }
 
 pub enum ConfigEvent {
@@ -149,6 +162,7 @@ pub enum ConfigEvent {
         source_language: Option<String>,
         target_language: Option<String>,
     },
+    ModelChange,
 }
 
 impl EventEmitter<ConfigEvent> for Config {}

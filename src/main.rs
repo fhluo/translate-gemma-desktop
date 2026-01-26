@@ -21,16 +21,30 @@ use crate::prompt::Prompt;
 use crate::status_bar::StatusBar;
 use futures_util::StreamExt;
 use gpui::{
-    div, prelude::*, px, size, App, Application, Bounds, ClickEvent, Entity,
-    FocusHandle, Task, Window, WindowBounds, WindowOptions,
+    div, prelude::*, px, size, Action, App, Application, Bounds, ClickEvent, Entity,
+    FocusHandle, Focusable, Menu, MenuItem, Task, Window, WindowBounds, WindowOptions,
 };
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::input::{Input, InputEvent, InputState};
+use gpui_component::menu::AppMenuBar;
 use gpui_component::{gray_600, Root, TitleBar};
+use schemars::JsonSchema;
 use semver::Version;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 i18n!("locales", fallback = "en");
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, Action)]
+struct ChangeModel {
+    name: String,
+}
+
+impl ChangeModel {
+    fn new(name: impl Into<String>) -> Self {
+        ChangeModel { name: name.into() }
+    }
+}
 
 struct TranslateApp {
     config: Entity<Config>,
@@ -40,6 +54,9 @@ struct TranslateApp {
     source_language_selector: Entity<LanguageSelector>,
     target_language_selector: Entity<LanguageSelector>,
 
+    menu_bar: Entity<AppMenuBar>,
+    menu_bar_focus_handle: FocusHandle,
+
     input_editor: Entity<InputState>,
     output_editor: Entity<InputState>,
 
@@ -48,6 +65,7 @@ struct TranslateApp {
     generate: Option<Task<anyhow::Result<()>>>,
 
     ollama_version: Option<Version>,
+    models: Vec<String>,
 }
 
 impl TranslateApp {
@@ -67,11 +85,14 @@ impl TranslateApp {
             locale_selector,
             source_language_selector: Self::setup_source_language_selector(window, cx),
             target_language_selector: Self::setup_target_language_selector(window, cx),
+            menu_bar: AppMenuBar::new(cx),
+            menu_bar_focus_handle: cx.focus_handle(),
             input_editor,
             output_editor,
             focus_handle,
             generate: None,
             ollama_version: None,
+            models: Vec::new(),
         }
     }
 
@@ -90,6 +111,63 @@ impl TranslateApp {
             }
         })
         .detach();
+    }
+
+    fn list_models(&mut self, cx: &mut Context<Self>) {
+        cx.spawn(async |this, cx| {
+            loop {
+                let models = ollama::list().await.ok();
+
+                if let Some(models) = models {
+                    let models = models
+                        .into_iter()
+                        .filter_map(|model| {
+                            if model.name.starts_with("translategemma") {
+                                Some(model.name)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+
+                    this.update(cx, |this, cx| {
+                        this.models = models;
+                        if let Some(model) = this.models.first()
+                            && this.config.read(cx).model().is_none()
+                        {
+                            this.config.update(cx, |this, cx| this.set_model(model, cx))
+                        }
+                        cx.notify();
+                    })
+                    .ok();
+                }
+
+                cx.background_executor().timer(Duration::from_mins(5)).await;
+            }
+        })
+        .detach();
+    }
+
+    fn model_menu(&self, cx: &App) -> Menu {
+        Menu {
+            name: t!("model").into(),
+            items: self
+                .models
+                .iter()
+                .map(|model| {
+                    MenuItem::action(model, ChangeModel::new(model))
+                        .checked(self.config.read(cx).model() == Some(model))
+                })
+                .collect::<Vec<_>>(),
+        }
+    }
+
+    fn update_menu_bar(&mut self, cx: &mut Context<Self>) {
+        cx.set_menus(vec![self.model_menu(cx)]);
+
+        self.menu_bar.update(cx, |menu_bar, cx| {
+            menu_bar.reload(cx);
+        });
     }
 
     fn setup_source_language_selector(
@@ -133,6 +211,7 @@ impl TranslateApp {
 
         cx.observe_new(|this: &mut Self, window, cx| {
             this.check_ollama_version(cx);
+            this.list_models(cx);
 
             let source_language_selector = this.source_language_selector.clone();
             let target_language_selector = this.target_language_selector.clone();
@@ -155,6 +234,11 @@ impl TranslateApp {
                     }
                 }
             });
+        })
+        .detach();
+
+        cx.observe_self(|this, cx| {
+            this.update_menu_bar(cx);
         })
         .detach();
 
@@ -201,6 +285,10 @@ impl TranslateApp {
                     this.translate(window, cx);
                 }
             }
+            ConfigEvent::ModelChange => {
+                this.translate(window, cx);
+                cx.notify();
+            }
             _ => {}
         })
         .detach();
@@ -235,7 +323,9 @@ impl TranslateApp {
     }
 
     fn translate(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(prompt) = self.prompt(cx) {
+        if let Some(model) = self.config.read(cx).model().cloned()
+            && let Some(prompt) = self.prompt(cx)
+        {
             let output_editor = self.output_editor.clone();
             self.generate = Some(cx.spawn_in(window, async move |_, window| {
                 window
@@ -244,7 +334,7 @@ impl TranslateApp {
                     .await;
 
                 let req = GenerateRequest::builder()
-                    .model("translategemma:4b")
+                    .model(model)
                     .stream(true)
                     .prompt(prompt.to_string())
                     .build();
@@ -279,6 +369,17 @@ impl TranslateApp {
         });
     }
 
+    fn on_action_change_model(
+        &mut self,
+        change_model: &ChangeModel,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.config.update(cx, |this, cx| {
+            this.set_model(&change_model.name, cx);
+        });
+    }
+
     fn on_click_swap_languages(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
         self.config.update(cx, |this, cx| {
             this.swap_languages(cx);
@@ -294,19 +395,27 @@ impl Render for TranslateApp {
             .flex()
             .flex_col()
             .child(
-                TitleBar::new().items_center().child(
-                    div().flex().flex_row().flex_1().child(
+                TitleBar::new()
+                    .items_center()
+                    .child(
                         div()
-                            .track_focus(&self.focus_handle)
-                            .on_action(cx.listener(Self::on_action_change_locale))
-                            .flex()
-                            .flex_row()
-                            .h_full()
-                            .ml_auto()
-                            .mr_3()
-                            .child(self.locale_selector.clone()),
+                            .track_focus(&self.menu_bar_focus_handle)
+                            .on_action(cx.listener(Self::on_action_change_model))
+                            .child(self.menu_bar.clone()),
+                    )
+                    .child(
+                        div().flex().flex_row().flex_1().child(
+                            div()
+                                .track_focus(&self.focus_handle)
+                                .on_action(cx.listener(Self::on_action_change_locale))
+                                .flex()
+                                .flex_row()
+                                .h_full()
+                                .ml_auto()
+                                .mr_3()
+                                .child(self.locale_selector.clone()),
+                        ),
                     ),
-                ),
             )
             .child(
                 div()
