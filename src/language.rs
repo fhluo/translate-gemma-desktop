@@ -4,6 +4,12 @@ pub struct Language {
     pub name: &'static str,
 }
 
+impl PartialEq for Language {
+    fn eq(&self, other: &Self) -> bool {
+        self.code == other.code
+    }
+}
+
 impl Language {
     pub fn new(code: &'static str, name: &'static str) -> Self {
         Language { code, name }

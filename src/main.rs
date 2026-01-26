@@ -51,6 +51,28 @@ impl TranslateApp {
 
         let locale_selector = cx.new(|_| LocaleSelector::new(focus_handle.clone()));
 
+        let input_editor = cx.new(|cx| InputState::new(window, cx).multi_line(true));
+        let output_editor = cx.new(|cx| InputState::new(window, cx).multi_line(true));
+
+        cx.subscribe_in(&input_editor, window, Self::on_input_event)
+            .detach();
+
+        TranslateApp {
+            config: Self::setup_config(window, cx),
+            locale_selector,
+            source_language_selector: Self::setup_source_language_selector(window, cx),
+            target_language_selector: Self::setup_target_language_selector(window, cx),
+            input_editor,
+            output_editor,
+            focus_handle,
+            generate: None,
+        }
+    }
+
+    fn setup_source_language_selector(
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Entity<LanguageSelector> {
         let source_language_selector = cx.new(|cx| LanguageSelector::new(window, cx));
 
         cx.subscribe(&source_language_selector, |this, _, event, cx| {
@@ -62,7 +84,15 @@ impl TranslateApp {
         })
         .detach();
 
+        source_language_selector
+    }
+
+    fn setup_target_language_selector(
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Entity<LanguageSelector> {
         let target_language_selector = cx.new(|cx| LanguageSelector::new(window, cx));
+
         cx.subscribe(&target_language_selector, |this, _, event, cx| {
             if let Some(language) = event.value() {
                 this.config.update(cx, |this, cx| {
@@ -72,22 +102,7 @@ impl TranslateApp {
         })
         .detach();
 
-        let input_editor = cx.new(|cx| InputState::new(window, cx).multi_line(true));
-        let output_editor = cx.new(|cx| InputState::new(window, cx).multi_line(true));
-
-        cx.subscribe_in(&input_editor, window, Self::on_input_event)
-            .detach();
-
-        TranslateApp {
-            config: Self::setup_config(window, cx),
-            locale_selector,
-            source_language_selector,
-            target_language_selector,
-            input_editor,
-            output_editor,
-            focus_handle,
-            generate: None,
-        }
+        target_language_selector
     }
 
     fn setup_config(window: &mut Window, cx: &mut Context<Self>) -> Entity<Config> {
@@ -145,20 +160,23 @@ impl TranslateApp {
                 source_language,
                 target_language,
             } => {
-                if let Some(language) = source_language {
+                if let (Some(source_language), Some(target_language)) =
+                    (source_language, target_language)
+                {
                     this.source_language_selector.update(cx, |this, cx| {
-                        this.set_selected_language(language, window, cx);
+                        this.reset_state(window, cx);
+                        this.set_selected_language(source_language, window, cx);
                     });
-                }
 
-                if let Some(language) = target_language {
                     this.target_language_selector.update(cx, |this, cx| {
-                        this.set_selected_language(language, window, cx);
+                        this.reset_state(window, cx);
+                        this.set_selected_language(target_language, window, cx);
                     });
-                }
 
-                this.translate(window, cx);
+                    this.translate(window, cx);
+                }
             }
+            _ => {}
         })
         .detach();
 

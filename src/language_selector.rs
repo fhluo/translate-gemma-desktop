@@ -66,6 +66,15 @@ pub struct LanguageSelector {
 
 impl LanguageSelector {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        LanguageSelector {
+            state: Self::setup_state(window, cx),
+        }
+    }
+
+    fn setup_state(
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Entity<SelectState<SearchableVec<LanguageItem>>> {
         let state = cx.new(|cx| {
             SelectState::new(SearchableVec::new(LanguageItem::all()), None, window, cx)
                 .searchable(true)
@@ -81,7 +90,11 @@ impl LanguageSelector {
         )
         .detach();
 
-        LanguageSelector { state }
+        state
+    }
+
+    pub fn reset_state(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.state = Self::setup_state(window, cx);
     }
 
     pub fn update_items(&self, window: &mut Window, cx: &mut Context<Self>) {
