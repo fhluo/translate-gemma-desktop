@@ -4,6 +4,7 @@ use futures_util::stream::BoxStream;
 use futures_util::{stream, StreamExt, TryStreamExt};
 use reqwest::header::ACCEPT;
 use reqwest::RequestBuilder;
+use semver::Version;
 use serde::Deserialize;
 use std::io;
 use std::sync::LazyLock;
@@ -48,9 +49,9 @@ impl Client {
 }
 
 impl Client {
-    pub async fn version(&self) -> anyhow::Result<String> {
+    pub async fn version(&self) -> anyhow::Result<Version> {
         #[derive(Deserialize)]
-        struct Version {
+        struct VersionResponse {
             version: String,
         }
 
@@ -60,16 +61,16 @@ impl Client {
             .handle
             .spawn(async { request.send().await })
             .await??
-            .json::<Version>()
+            .json::<VersionResponse>()
             .await?;
 
-        Ok(version.version)
+        Version::parse(&version.version).map_err(|err| anyhow!(err))
     }
 }
 
 static DEFAULT_CLIENT: LazyLock<Client> = LazyLock::new(|| Client::default());
 
-pub async fn version() -> anyhow::Result<String> {
+pub async fn version() -> anyhow::Result<Version> {
     DEFAULT_CLIENT.version().await
 }
 

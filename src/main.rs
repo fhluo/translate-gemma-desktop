@@ -10,6 +10,7 @@ mod language_selector;
 mod locale_selector;
 mod ollama;
 mod prompt;
+mod status_bar;
 
 use crate::assets::{Assets, Icons};
 use crate::config::{Config, ConfigEvent};
@@ -17,6 +18,7 @@ use crate::language_selector::LanguageSelector;
 use crate::locale_selector::{ChangeLocale, LocaleSelector};
 use crate::ollama::{generate, GenerateRequest};
 use crate::prompt::Prompt;
+use crate::status_bar::StatusBar;
 use futures_util::StreamExt;
 use gpui::{
     div, prelude::*, px, size, App, Application, Bounds, ClickEvent, Entity,
@@ -25,6 +27,7 @@ use gpui::{
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::{gray_600, Root, TitleBar};
+use semver::Version;
 use std::time::Duration;
 
 i18n!("locales", fallback = "en");
@@ -43,6 +46,8 @@ struct TranslateApp {
     focus_handle: FocusHandle,
 
     generate: Option<Task<anyhow::Result<()>>>,
+
+    ollama_version: Option<Version>,
 }
 
 impl TranslateApp {
@@ -66,7 +71,25 @@ impl TranslateApp {
             output_editor,
             focus_handle,
             generate: None,
+            ollama_version: None,
         }
+    }
+
+    fn check_ollama_version(&mut self, cx: &mut Context<Self>) {
+        cx.spawn(async |this, cx| {
+            loop {
+                let version = ollama::version().await.ok();
+
+                this.update(cx, |this, cx| {
+                    this.ollama_version = version;
+                    cx.notify();
+                })
+                .ok();
+
+                cx.background_executor().timer(Duration::from_mins(5)).await;
+            }
+        })
+        .detach();
     }
 
     fn setup_source_language_selector(
@@ -109,6 +132,8 @@ impl TranslateApp {
         let config = cx.new(|_| Config::load("translate-gemma-desktop"));
 
         cx.observe_new(|this: &mut Self, window, cx| {
+            this.check_ollama_version(cx);
+
             let source_language_selector = this.source_language_selector.clone();
             let target_language_selector = this.target_language_selector.clone();
 
@@ -316,6 +341,7 @@ impl Render for TranslateApp {
                     .child(Input::new(&self.input_editor).flex_1())
                     .child(Input::new(&self.output_editor).flex_1()),
             )
+            .child(StatusBar::new(self.ollama_version.clone()))
     }
 }
 
