@@ -100,6 +100,7 @@ impl TranslateApp {
             this.config.update(cx, |this, cx| {
                 this.init(cx);
 
+                // Set the initial language for language selectors.
                 if let Some(window) = window {
                     if let Some(language) = this.get_source_language() {
                         source_language_selector.update(cx, |this, cx| {
@@ -134,21 +135,11 @@ impl TranslateApp {
                 });
                 window.refresh();
             }
-            ConfigEvent::SourceLanguageChange(language) => {
-                if let Some(language) = language {
-                    this.source_language_selector.update(cx, |this, cx| {
-                        this.set_selected_language(language, window, cx);
-                    });
-                    this.translate(window, cx);
-                }
+            ConfigEvent::SourceLanguageChange(language) if language.is_some() => {
+                this.translate(window, cx)
             }
-            ConfigEvent::TargetLanguageChange(language) => {
-                if let Some(language) = language {
-                    this.target_language_selector.update(cx, |this, cx| {
-                        this.set_selected_language(language, window, cx);
-                    });
-                    this.translate(window, cx);
-                }
+            ConfigEvent::TargetLanguageChange(language) if language.is_some() => {
+                this.translate(window, cx);
             }
             ConfigEvent::SwapLanguages {
                 source_language,
