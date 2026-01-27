@@ -55,12 +55,9 @@ struct TranslateApp {
     target_language_selector: Entity<LanguageSelector>,
 
     menu_bar: Entity<AppMenuBar>,
-    menu_bar_focus_handle: FocusHandle,
 
     input_editor: Entity<InputState>,
     output_editor: Entity<InputState>,
-
-    focus_handle: FocusHandle,
 
     generate: Option<Task<anyhow::Result<()>>>,
 
@@ -70,15 +67,21 @@ struct TranslateApp {
 
 impl TranslateApp {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let focus_handle = cx.focus_handle();
-
-        let locale_selector = cx.new(|_| LocaleSelector::new(focus_handle.clone()));
-
         let input_editor = cx.new(|cx| InputState::new(window, cx).multi_line(true));
         let output_editor = cx.new(|cx| InputState::new(window, cx).multi_line(true));
 
+        cx.on_focus_lost(window, |this, window, cx| {
+            this.input_editor.update(cx, |this, cx| {
+                this.focus(window, cx);
+            });
+        })
+        .detach();
+
         cx.subscribe_in(&input_editor, window, Self::on_input_event)
             .detach();
+
+        let locale_selector =
+            cx.new(|cx| LocaleSelector::new(input_editor.focus_handle(cx).clone()));
 
         TranslateApp {
             config: Self::setup_config(window, cx),
@@ -86,10 +89,8 @@ impl TranslateApp {
             source_language_selector: Self::setup_source_language_selector(window, cx),
             target_language_selector: Self::setup_target_language_selector(window, cx),
             menu_bar: AppMenuBar::new(cx),
-            menu_bar_focus_handle: cx.focus_handle(),
             input_editor,
             output_editor,
-            focus_handle,
             generate: None,
             ollama_version: None,
             models: Vec::new(),
@@ -412,6 +413,8 @@ impl TranslateApp {
 impl Render for TranslateApp {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
+            .on_action(cx.listener(Self::on_action_change_model))
+            .on_action(cx.listener(Self::on_action_change_locale))
             .w_full()
             .h_full()
             .flex()
@@ -419,17 +422,10 @@ impl Render for TranslateApp {
             .child(
                 TitleBar::new()
                     .items_center()
-                    .child(
-                        div()
-                            .track_focus(&self.menu_bar_focus_handle)
-                            .on_action(cx.listener(Self::on_action_change_model))
-                            .child(self.menu_bar.clone()),
-                    )
+                    .child(self.menu_bar.clone())
                     .child(
                         div().flex().flex_row().flex_1().child(
                             div()
-                                .track_focus(&self.focus_handle)
-                                .on_action(cx.listener(Self::on_action_change_locale))
                                 .flex()
                                 .flex_row()
                                 .h_full()
