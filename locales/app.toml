@@ -11,3 +11,11 @@ zh = "交换源语言与目标语言"
 [model]
 en = "Model"
 zh = "模型"
+
+[translate.wait-input]
+en = "Waiting for input..."
+zh = "等待输入中……"
+
+[translate.in-progress]
+en = "Translating..."
+zh = "翻译中……"

@@ -327,11 +327,27 @@ impl TranslateApp {
             && let Some(prompt) = self.prompt(cx)
         {
             let output_editor = self.output_editor.clone();
-            self.generate = Some(cx.spawn_in(window, async move |_, window| {
-                window
-                    .background_executor()
-                    .timer(Duration::from_millis(500))
-                    .await;
+
+            let has_active_task = self.generate.as_ref().is_some_and(|task| !task.is_ready());
+            self.generate = None;
+
+            self.generate = Some(cx.spawn_in(window, async move |this, window| {
+                if has_active_task {
+                    output_editor.update_in(window, |state, window, cx| {
+                        state.set_value("", window, cx);
+                        state.set_placeholder(t!("translate.wait-input"), window, cx);
+                    })?;
+
+                    window
+                        .background_executor()
+                        .timer(Duration::from_millis(500))
+                        .await;
+
+                    output_editor.update_in(window, |state, window, cx| {
+                        state.set_value("", window, cx);
+                        state.set_placeholder(t!("translate.in-progress"), window, cx);
+                    })?;
+                }
 
                 let req = GenerateRequest::builder()
                     .model(model)
@@ -341,9 +357,15 @@ impl TranslateApp {
 
                 let mut result = generate(req).await?;
 
-                output_editor.update_in(window, |state, window, cx| {
-                    state.set_value("", window, cx);
-                })?;
+                if let Some(item) = result.next().await {
+                    let response = item?.response;
+
+                    output_editor.update_in(window, |state, window, cx| {
+                        state.set_value("", window, cx);
+                        state.set_placeholder("", window, cx);
+                        state.insert(response, window, cx);
+                    })?;
+                }
 
                 while let Some(item) = result.next().await {
                     let response = item?.response;
