@@ -258,6 +258,7 @@ impl TranslateApp {
                 this.target_language_selector.update(cx, |this, cx| {
                     this.update_items(window, cx);
                 });
+                cx.notify();
                 window.refresh();
             }
             ConfigEvent::SourceLanguageChange(language) if language.is_some() => {
