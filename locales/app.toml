@@ -28,6 +28,10 @@ zh = "帮助"
 en = "About"
 zh = "关于"
 
+[repository]
+en = "Repository"
+zh = "仓库"
+
 [about.description]
 en = "A cross-platform desktop application for TranslateGemma, built with GPUI."
 zh = "一个 TranslateGemma 的跨平台桌面应用，使用 GPUI 构建。"

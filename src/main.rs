@@ -37,7 +37,7 @@ use std::time::Duration;
 
 i18n!("locales", fallback = "en");
 
-actions!([About]);
+actions!([About, Repository]);
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, Action)]
 struct ChangeModel {
@@ -170,7 +170,11 @@ impl TranslateApp {
     fn help_menu() -> Menu {
         Menu {
             name: t!("help").into(),
-            items: vec![MenuItem::action(t!("about"), About)],
+            items: vec![
+                MenuItem::action(t!("repository"), Repository),
+                MenuItem::Separator,
+                MenuItem::action(t!("about"), About),
+            ],
         }
     }
 
@@ -415,6 +419,10 @@ impl TranslateApp {
         });
     }
 
+    fn on_action_repository(&mut self, _: &Repository, _: &mut Window, cx: &mut Context<Self>) {
+        cx.open_url("https://github.com/fhluo/translate-gemma-desktop")
+    }
+
     fn on_action_about(&mut self, _: &About, window: &mut Window, cx: &mut Context<Self>) {
         open_about_dialog(window, cx);
     }
@@ -431,6 +439,7 @@ impl Render for TranslateApp {
         let dialog_layer = Root::render_dialog_layer(window, cx);
 
         div()
+            .on_action(cx.listener(Self::on_action_repository))
             .on_action(cx.listener(Self::on_action_about))
             .on_action(cx.listener(Self::on_action_change_model))
             .on_action(cx.listener(Self::on_action_change_locale))
