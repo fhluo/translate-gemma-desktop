@@ -19,3 +19,23 @@ zh = "等待输入中……"
 [translate.in-progress]
 en = "Translating..."
 zh = "翻译中……"
+
+[help]
+en = "Help"
+zh = "帮助"
+
+[about]
+en = "About"
+zh = "关于"
+
+[about.description]
+en = "A cross-platform desktop application for TranslateGemma, built with GPUI."
+zh = "一个 TranslateGemma 的跨平台桌面应用，使用 GPUI 构建。"
+
+[about.license]
+en = "License"
+zh = "许可协议"
+
+[about.version]
+en = "Version"
+zh = "版本"

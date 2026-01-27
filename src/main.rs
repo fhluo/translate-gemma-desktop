@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate rust_i18n;
 
+mod about;
 mod assets;
 mod config;
 mod language;
@@ -12,6 +13,7 @@ mod ollama;
 mod prompt;
 mod status_bar;
 
+use crate::about::open_about_dialog;
 use crate::assets::{Assets, Icons};
 use crate::config::{Config, ConfigEvent};
 use crate::language_selector::LanguageSelector;
@@ -21,8 +23,8 @@ use crate::prompt::Prompt;
 use crate::status_bar::StatusBar;
 use futures_util::StreamExt;
 use gpui::{
-    div, prelude::*, px, size, Action, App, Application, Bounds, ClickEvent, Entity,
-    FocusHandle, Focusable, Menu, MenuItem, Task, Window, WindowBounds, WindowOptions,
+    actions, div, prelude::*, px, size, Action, App, Application, Bounds, ClickEvent,
+    Entity, FocusHandle, Focusable, Menu, MenuItem, Task, Window, WindowBounds, WindowOptions,
 };
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::input::{Input, InputEvent, InputState};
@@ -34,6 +36,8 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 i18n!("locales", fallback = "en");
+
+actions!([About]);
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, Action)]
 struct ChangeModel {
@@ -163,8 +167,15 @@ impl TranslateApp {
         }
     }
 
+    fn help_menu(&self, cx: &App) -> Menu {
+        Menu {
+            name: t!("help").into(),
+            items: vec![MenuItem::action(t!("about"), About)],
+        }
+    }
+
     fn update_menu_bar(&mut self, cx: &mut Context<Self>) {
-        cx.set_menus(vec![self.model_menu(cx)]);
+        cx.set_menus(vec![self.model_menu(cx), self.help_menu(cx)]);
 
         self.menu_bar.update(cx, |menu_bar, cx| {
             menu_bar.reload(cx);
@@ -404,6 +415,10 @@ impl TranslateApp {
         });
     }
 
+    fn on_action_about(&mut self, _: &About, window: &mut Window, cx: &mut Context<Self>) {
+        open_about_dialog(window, cx);
+    }
+
     fn on_click_swap_languages(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
         self.config.update(cx, |this, cx| {
             this.swap_languages(cx);
@@ -413,7 +428,10 @@ impl TranslateApp {
 
 impl Render for TranslateApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let dialog_layer = Root::render_dialog_layer(window, cx);
+
         div()
+            .on_action(cx.listener(Self::on_action_about))
             .on_action(cx.listener(Self::on_action_change_model))
             .on_action(cx.listener(Self::on_action_change_locale))
             .w_full()
@@ -486,6 +504,7 @@ impl Render for TranslateApp {
                     ),
             )
             .child(StatusBar::new(self.ollama_version.clone()))
+            .children(dialog_layer)
     }
 }
 
