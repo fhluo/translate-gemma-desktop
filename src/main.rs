@@ -27,7 +27,7 @@ use gpui::{
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::menu::AppMenuBar;
-use gpui_component::{gray_600, Root, TitleBar};
+use gpui_component::{gray_300, gray_600, Root, TitleBar};
 use schemars::JsonSchema;
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -411,7 +411,7 @@ impl TranslateApp {
 }
 
 impl Render for TranslateApp {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .on_action(cx.listener(Self::on_action_change_model))
             .on_action(cx.listener(Self::on_action_change_locale))
@@ -465,8 +465,24 @@ impl Render for TranslateApp {
                     .px_3()
                     .py_1()
                     .gap_3()
-                    .child(Input::new(&self.input_editor).flex_1())
-                    .child(Input::new(&self.output_editor).flex_1()),
+                    .child(
+                        Input::new(&self.input_editor)
+                            .flex_1()
+                            .focus_bordered(false)
+                            .when(
+                                self.input_editor.focus_handle(cx).is_focused(window),
+                                |this| this.shadow_sm().border_1().border_color(gray_300()),
+                            ),
+                    )
+                    .child(
+                        Input::new(&self.output_editor)
+                            .flex_1()
+                            .focus_bordered(false)
+                            .when(
+                                self.output_editor.focus_handle(cx).is_focused(window),
+                                |this| this.shadow_sm().border_1().border_color(gray_300()),
+                            ),
+                    ),
             )
             .child(StatusBar::new(self.ollama_version.clone()))
     }
