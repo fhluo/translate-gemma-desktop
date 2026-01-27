@@ -23,8 +23,8 @@ use crate::prompt::Prompt;
 use crate::status_bar::StatusBar;
 use futures_util::StreamExt;
 use gpui::{
-    actions, div, prelude::*, px, size, Action, App, Application, Bounds, ClickEvent,
-    Entity, FocusHandle, Focusable, Menu, MenuItem, Task, Window, WindowBounds, WindowOptions,
+    actions, div, prelude::*, px, size, Action, App, Application, Bounds, ClickEvent, Entity,
+    Focusable, Menu, MenuItem, Task, Window, WindowBounds, WindowOptions,
 };
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::input::{Input, InputEvent, InputState};
@@ -167,7 +167,7 @@ impl TranslateApp {
         }
     }
 
-    fn help_menu(&self, cx: &App) -> Menu {
+    fn help_menu() -> Menu {
         Menu {
             name: t!("help").into(),
             items: vec![MenuItem::action(t!("about"), About)],
@@ -175,7 +175,7 @@ impl TranslateApp {
     }
 
     fn update_menu_bar(&mut self, cx: &mut Context<Self>) {
-        cx.set_menus(vec![self.model_menu(cx), self.help_menu(cx)]);
+        cx.set_menus(vec![self.model_menu(cx), Self::help_menu()]);
 
         self.menu_bar.update(cx, |menu_bar, cx| {
             menu_bar.reload(cx);
@@ -344,7 +344,7 @@ impl TranslateApp {
             let has_active_task = self.generate.as_ref().is_some_and(|task| !task.is_ready());
             self.generate = None;
 
-            self.generate = Some(cx.spawn_in(window, async move |this, window| {
+            self.generate = Some(cx.spawn_in(window, async move |_, window| {
                 if has_active_task {
                     output_editor.update_in(window, |state, window, cx| {
                         state.set_value("", window, cx);

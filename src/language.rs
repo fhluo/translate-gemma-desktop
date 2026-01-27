@@ -11,6 +11,7 @@ impl PartialEq for Language {
 }
 
 impl Language {
+    #[allow(dead_code)]
     pub fn new(code: &'static str, name: &'static str) -> Self {
         Language { code, name }
     }

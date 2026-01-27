@@ -1,7 +1,5 @@
 use crate::assets::Icons;
-use gpui::{
-    Action, Context, Corner, FocusHandle, InteractiveElement, IntoElement, Render, Styled, Window,
-};
+use gpui::{Action, Context, Corner, FocusHandle, IntoElement, Render, Styled, Window};
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::menu::DropdownMenu;
 use gpui_component::{gray_500, Sizable};

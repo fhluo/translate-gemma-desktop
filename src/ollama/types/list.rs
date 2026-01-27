@@ -5,6 +5,7 @@ pub struct ListResponse {
     pub models: Vec<Model>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Model {
     pub name: String,
@@ -14,6 +15,7 @@ pub struct Model {
     pub details: ModelDetails,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct ModelDetails {
     pub format: String,

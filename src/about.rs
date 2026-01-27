@@ -7,7 +7,7 @@ use gpui_component::{gray_900, ActiveTheme, Sizable, StyledExt, WindowExt};
 pub struct About;
 
 impl RenderOnce for About {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         div()
             .py_3()
             .flex()
@@ -60,7 +60,7 @@ impl RenderOnce for About {
 }
 
 pub fn open_about_dialog(window: &mut Window, cx: &mut App) {
-    window.open_dialog(cx, |dialog, _, cx| {
+    window.open_dialog(cx, |dialog, _, _| {
         dialog.alert().title(t!("about").to_string()).child(About)
     });
 }

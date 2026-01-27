@@ -26,6 +26,7 @@ impl AssetSource for Assets {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Copy, Clone)]
 pub enum Icons {
     ArrowRightLeft,

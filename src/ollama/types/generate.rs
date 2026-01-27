@@ -55,6 +55,7 @@ impl GenerateRequest {
 
 pub struct GenerateRequestBuilder(GenerateRequest);
 
+#[allow(dead_code)]
 impl GenerateRequestBuilder {
     pub fn model(mut self, model: impl Into<String>) -> Self {
         self.0.model = model.into();
@@ -148,6 +149,7 @@ impl GenerateRequestBuilder {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct GenerateResponse {
     pub model: String,
@@ -160,6 +162,7 @@ pub struct GenerateResponse {
     pub metrics: Metrics,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Metrics {
     pub total_duration: Option<i64>,

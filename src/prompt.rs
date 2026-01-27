@@ -22,6 +22,7 @@ impl Prompt {
         }
     }
 
+    #[allow(dead_code)]
     /// Swaps languages.
     pub fn swap(mut self) -> Prompt {
         mem::swap(&mut self.source_language, &mut self.target_language);
@@ -29,6 +30,7 @@ impl Prompt {
         self
     }
 
+    #[allow(dead_code)]
     pub fn text(mut self, text: impl Into<String>) -> Self {
         self.text = text.into();
 
