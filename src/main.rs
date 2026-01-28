@@ -504,7 +504,7 @@ fn main() -> anyhow::Result<()> {
     app.run(move |cx| {
         gpui_component::init(cx);
 
-        let bounds = Bounds::centered(None, size(px(800.), px(600.)), cx);
+        let bounds = Bounds::centered(None, size(px(1000.), px(625.)), cx);
 
         cx.spawn(async move |cx| {
             cx.open_window(
