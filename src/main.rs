@@ -10,6 +10,7 @@ mod language;
 mod language_selector;
 mod locale_selector;
 mod ollama;
+mod output_editor;
 mod prompt;
 mod status_bar;
 
@@ -19,6 +20,7 @@ use crate::config::{Config, ConfigEvent};
 use crate::language_selector::LanguageSelector;
 use crate::locale_selector::{ChangeLocale, LocaleSelector};
 use crate::ollama::{generate, GenerateRequest};
+use crate::output_editor::OutputEditor;
 use crate::prompt::Prompt;
 use crate::status_bar::StatusBar;
 use futures_util::StreamExt;
@@ -61,7 +63,7 @@ struct TranslateApp {
     menu_bar: Entity<AppMenuBar>,
 
     input_editor: Entity<InputState>,
-    output_editor: Entity<InputState>,
+    output_editor: Entity<OutputEditor>,
 
     generate: Option<Task<anyhow::Result<()>>>,
 
@@ -72,7 +74,7 @@ struct TranslateApp {
 impl TranslateApp {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_editor = cx.new(|cx| InputState::new(window, cx).multi_line(true));
-        let output_editor = cx.new(|cx| InputState::new(window, cx).multi_line(true));
+        let output_editor = cx.new(|cx| OutputEditor::new(window, cx));
 
         cx.on_focus_lost(window, |this, window, cx| {
             this.input_editor.update(cx, |this, cx| {
@@ -350,9 +352,8 @@ impl TranslateApp {
 
             self.generate = Some(cx.spawn_in(window, async move |_, window| {
                 if has_active_task {
-                    output_editor.update_in(window, |state, window, cx| {
-                        state.set_value("", window, cx);
-                        state.set_placeholder(t!("translate.wait-input"), window, cx);
+                    output_editor.update_in(window, |this, window, cx| {
+                        this.wait_for_input(window, cx);
                     })?;
 
                     window
@@ -360,9 +361,8 @@ impl TranslateApp {
                         .timer(Duration::from_millis(500))
                         .await;
 
-                    output_editor.update_in(window, |state, window, cx| {
-                        state.set_value("", window, cx);
-                        state.set_placeholder(t!("translate.in-progress"), window, cx);
+                    output_editor.update_in(window, |this, window, cx| {
+                        this.translate_in_progress(window, cx);
                     })?;
                 }
 
@@ -377,21 +377,17 @@ impl TranslateApp {
                 if let Some(item) = result.next().await {
                     let response = item?.response;
 
-                    output_editor.update_in(window, |state, window, cx| {
-                        state.set_value("", window, cx);
-                        state.set_placeholder("", window, cx);
-
-                        let end = state.text().len_utf16();
-                        state.replace_text_in_range(Some(end..end), &response, window, cx);
+                    output_editor.update_in(window, |this, window, cx| {
+                        this.reset(window, cx);
+                        this.append(response, window, cx);
                     })?;
                 }
 
                 while let Some(item) = result.next().await {
                     let response = item?.response;
 
-                    output_editor.update_in(window, |state, window, cx| {
-                        let end = state.text().len_utf16();
-                        state.replace_text_in_range(Some(end..end), &response, window, cx);
+                    output_editor.update_in(window, |this, window, cx| {
+                        this.append(response, window, cx);
                     })?;
                 }
 
@@ -505,15 +501,7 @@ impl Render for TranslateApp {
                                 |this| this.shadow_sm().border_1().border_color(gray_300()),
                             ),
                     )
-                    .child(
-                        Input::new(&self.output_editor)
-                            .flex_1()
-                            .focus_bordered(false)
-                            .when(
-                                self.output_editor.focus_handle(cx).is_focused(window),
-                                |this| this.shadow_sm().border_1().border_color(gray_300()),
-                            ),
-                    ),
+                    .child(self.output_editor.clone()),
             )
             .child(StatusBar::new(self.ollama_version.clone()))
             .children(dialog_layer)
