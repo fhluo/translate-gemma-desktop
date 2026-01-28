@@ -6,6 +6,7 @@ extern crate rust_i18n;
 mod about;
 mod assets;
 mod config;
+mod editor;
 mod input_editor;
 mod language;
 mod language_selector;

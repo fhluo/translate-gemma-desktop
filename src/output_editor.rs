@@ -43,15 +43,7 @@ impl OutputEditor {
 }
 
 impl Render for OutputEditor {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div().flex_1().flex().flex_col().child(
-            Input::new(&self.state)
-                .w_full()
-                .h_full()
-                .focus_bordered(false)
-                .when(self.state.focus_handle(cx).is_focused(window), |this| {
-                    this.shadow_sm().border_1().border_color(gray_300())
-                }),
-        )
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        Editor::new(&self.state)
     }
 }
