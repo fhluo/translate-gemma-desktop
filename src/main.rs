@@ -380,7 +380,9 @@ impl TranslateApp {
                     output_editor.update_in(window, |state, window, cx| {
                         state.set_value("", window, cx);
                         state.set_placeholder("", window, cx);
-                        state.insert(response, window, cx);
+
+                        let end = state.text().len_utf16();
+                        state.replace_text_in_range(Some(end..end), &response, window, cx);
                     })?;
                 }
 
@@ -388,7 +390,8 @@ impl TranslateApp {
                     let response = item?.response;
 
                     output_editor.update_in(window, |state, window, cx| {
-                        state.insert(response, window, cx);
+                        let end = state.text().len_utf16();
+                        state.replace_text_in_range(Some(end..end), &response, window, cx);
                     })?;
                 }
 
