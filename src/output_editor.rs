@@ -1,9 +1,9 @@
-use gpui::{div, prelude::*, Context, Entity, EntityInputHandler, Focusable, Window};
-use gpui_component::gray_300;
-use gpui_component::input::{Input, InputState};
+use crate::editor::Editor;
+use gpui::{prelude::*, Context, Entity, EntityInputHandler, Window};
+use gpui_component::input::InputState;
 
 pub struct OutputEditor {
-    state: Entity<InputState>,
+    pub state: Entity<InputState>,
 }
 
 impl OutputEditor {

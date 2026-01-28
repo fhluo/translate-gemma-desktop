@@ -1,8 +1,23 @@
 use gpui::{
-    div, prelude::*, App, Entity, FocusHandle, Focusable, IntoElement, Window,
+    div, prelude::*, App, Entity, FocusHandle, Focusable, IntoElement, SharedString, Window,
 };
 use gpui_component::gray_300;
 use gpui_component::input::{Input, InputState};
+
+pub trait InputStateEntityExt {
+    fn is_empty(&self, cx: &App) -> bool;
+    fn text(&self, cx: &App) -> SharedString;
+}
+
+impl InputStateEntityExt for Entity<InputState> {
+    fn is_empty(&self, cx: &App) -> bool {
+        self.read(cx).text().len() == 0
+    }
+
+    fn text(&self, cx: &App) -> SharedString {
+        self.read(cx).value()
+    }
+}
 
 #[derive(IntoElement)]
 pub struct Editor {

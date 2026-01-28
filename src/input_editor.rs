@@ -1,6 +1,6 @@
-use gpui::{div, prelude::*, App, Context, Entity, FocusHandle, Focusable, SharedString, Window};
-use gpui_component::gray_300;
-use gpui_component::input::{Input, InputState};
+use crate::editor::{Editor, InputStateEntityExt};
+use gpui::{prelude::*, App, Context, Entity, FocusHandle, Focusable, SharedString, Window};
+use gpui_component::input::InputState;
 
 pub struct InputEditor {
     pub state: Entity<InputState>,
@@ -27,11 +27,11 @@ impl InputEditor {
     }
 
     pub fn is_empty(&self, cx: &App) -> bool {
-        self.state.read(cx).text().len() == 0
+        self.state.is_empty(cx)
     }
 
     pub fn text(&self, cx: &App) -> SharedString {
-        self.state.read(cx).value()
+        self.state.text(cx)
     }
 }
 
