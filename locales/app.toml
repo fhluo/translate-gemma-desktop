@@ -20,6 +20,10 @@ zh = "等待输入中……"
 en = "Translating..."
 zh = "翻译中……"
 
+[copy]
+en = "Copy"
+zh = "复制"
+
 [help]
 en = "Help"
 zh = "帮助"

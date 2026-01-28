@@ -44,6 +44,6 @@ impl OutputEditor {
 
 impl Render for OutputEditor {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        Editor::new(&self.state)
+        Editor::new("output-editor", &self.state)
     }
 }

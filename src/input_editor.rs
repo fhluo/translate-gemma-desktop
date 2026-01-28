@@ -37,6 +37,6 @@ impl InputEditor {
 
 impl Render for InputEditor {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        Editor::new(&self.state)
+        Editor::new("input-editor", &self.state)
     }
 }
