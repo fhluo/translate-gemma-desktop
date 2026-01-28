@@ -6,6 +6,7 @@ extern crate rust_i18n;
 mod about;
 mod assets;
 mod config;
+mod input_editor;
 mod language;
 mod language_selector;
 mod locale_selector;
@@ -17,6 +18,7 @@ mod status_bar;
 use crate::about::open_about_dialog;
 use crate::assets::{Assets, Icons};
 use crate::config::{Config, ConfigEvent};
+use crate::input_editor::InputEditor;
 use crate::language_selector::LanguageSelector;
 use crate::locale_selector::{ChangeLocale, LocaleSelector};
 use crate::ollama::{generate, GenerateRequest};
@@ -29,9 +31,9 @@ use gpui::{
     Focusable, Menu, MenuItem, Task, Window, WindowBounds, WindowOptions,
 };
 use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::input::{Input, InputEvent, InputState};
+use gpui_component::input::{InputEvent, InputState};
 use gpui_component::menu::AppMenuBar;
-use gpui_component::{gray_300, gray_600, Root, TitleBar};
+use gpui_component::{gray_600, Root, TitleBar};
 use schemars::JsonSchema;
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -62,7 +64,7 @@ struct TranslateApp {
 
     menu_bar: Entity<AppMenuBar>,
 
-    input_editor: Entity<InputState>,
+    input_editor: Entity<InputEditor>,
     output_editor: Entity<OutputEditor>,
 
     generate: Option<Task<anyhow::Result<()>>>,
@@ -73,17 +75,11 @@ struct TranslateApp {
 
 impl TranslateApp {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let input_editor = cx.new(|cx| InputState::new(window, cx).multi_line(true));
+        let input_editor = cx.new(|cx| InputEditor::new(window, cx));
         let output_editor = cx.new(|cx| OutputEditor::new(window, cx));
 
-        cx.on_focus_lost(window, |this, window, cx| {
-            this.input_editor.update(cx, |this, cx| {
-                this.focus(window, cx);
-            });
-        })
-        .detach();
-
-        cx.subscribe_in(&input_editor, window, Self::on_input_event)
+        let input_state = input_editor.read(cx).state.clone();
+        cx.subscribe_in(&input_state, window, Self::on_input_event)
             .detach();
 
         let locale_selector =
@@ -330,12 +326,15 @@ impl TranslateApp {
     fn prompt(&mut self, cx: &App) -> Option<Prompt> {
         let source_language = self.source_language_selector.read(cx).selected_language(cx);
         let target_language = self.target_language_selector.read(cx).selected_language(cx);
-        let text = self.input_editor.read(cx).value();
 
         if let (Some(source_language), Some(target_language)) = (source_language, target_language)
-            && !text.is_empty()
+            && !self.input_editor.read(cx).is_empty(cx)
         {
-            Some(Prompt::new(source_language, target_language, text))
+            Some(Prompt::new(
+                source_language,
+                target_language,
+                self.input_editor.read(cx).text(cx),
+            ))
         } else {
             None
         }
@@ -489,18 +488,9 @@ impl Render for TranslateApp {
                     .h_full()
                     .grid()
                     .grid_cols(2)
-                    .px_3()
-                    .py_1()
+                    .p_3()
                     .gap_3()
-                    .child(
-                        Input::new(&self.input_editor)
-                            .flex_1()
-                            .focus_bordered(false)
-                            .when(
-                                self.input_editor.focus_handle(cx).is_focused(window),
-                                |this| this.shadow_sm().border_1().border_color(gray_300()),
-                            ),
-                    )
+                    .child(self.input_editor.clone())
                     .child(self.output_editor.clone()),
             )
             .child(StatusBar::new(self.ollama_version.clone()))
