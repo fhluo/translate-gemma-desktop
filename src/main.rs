@@ -222,7 +222,7 @@ impl TranslateApp {
     }
 
     fn setup_config(window: &mut Window, cx: &mut Context<Self>) -> Entity<Config> {
-        let config = cx.new(|_| Config::load("translate-gemma-desktop"));
+        let config = cx.new(|_| Config::load("TranslateGemma Desktop"));
 
         cx.observe_new(|this: &mut Self, window, cx| {
             this.check_ollama_version(cx);
