@@ -6,7 +6,7 @@ zh = "语言"
 
 [swap-languages]
 en = "Swap languages"
-zh = "交换源语言与目标语言"
+zh = "互换语言"
 
 [model]
 en = "Model"
@@ -38,7 +38,7 @@ zh = "仓库"
 
 [about.description]
 en = "A cross-platform desktop application for TranslateGemma, built with GPUI."
-zh = "一个 TranslateGemma 的跨平台桌面应用，使用 GPUI 构建。"
+zh = "基于 GPUI 构建的 TranslateGemma 跨平台桌面应用。"
 
 [about.license]
 en = "License"
