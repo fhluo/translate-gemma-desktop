@@ -12,6 +12,30 @@ zh = "互换语言"
 en = "Model"
 zh = "模型"
 
+[file]
+en = "File"
+zh = "文件"
+
+[open]
+en = "Open..."
+zh = "打开..."
+
+[save]
+en = "Save"
+zh = "保存"
+
+[input]
+en = "Input"
+zh = "输入"
+
+[output]
+en = "Output"
+zh = "输出"
+
+[exit]
+en = "Exit"
+zh = "退出"
+
 [translate.wait-input]
 en = "Waiting for input..."
 zh = "等待输入中……"

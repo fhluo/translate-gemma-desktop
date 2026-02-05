@@ -1,5 +1,5 @@
-use crate::editor::Editor;
-use gpui::{prelude::*, Context, Entity, EntityInputHandler, Window};
+use crate::editor::{Editor, InputStateEntityExt};
+use gpui::{prelude::*, App, Context, Entity, EntityInputHandler, SharedString, Window};
 use gpui_component::input::InputState;
 
 pub struct OutputEditor {
@@ -11,6 +11,15 @@ impl OutputEditor {
         let state = cx.new(|cx| InputState::new(window, cx).multi_line(true));
 
         OutputEditor { state }
+    }
+
+    #[allow(dead_code)]
+    pub fn is_empty(&self, cx: &App) -> bool {
+        self.state.is_empty(cx)
+    }
+
+    pub fn text(&self, cx: &App) -> SharedString {
+        self.state.text(cx)
     }
 
     pub fn reset(&mut self, window: &mut Window, cx: &mut Context<Self>) {

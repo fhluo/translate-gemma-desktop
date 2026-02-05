@@ -28,8 +28,9 @@ use crate::prompt::Prompt;
 use crate::status_bar::StatusBar;
 use futures_util::StreamExt;
 use gpui::{
-    actions, div, prelude::*, px, size, Action, App, Application, Bounds, ClickEvent, Entity,
-    Focusable, Menu, MenuItem, Task, Window, WindowBounds, WindowOptions,
+    actions, div, prelude::*, px, size, Action, App, Application, Bounds,
+    ClickEvent, Entity, Focusable, Menu, MenuItem, PathPromptOptions, Task, Window, WindowBounds,
+    WindowOptions,
 };
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::input::{InputEvent, InputState};
@@ -38,11 +39,13 @@ use gpui_component::{gray_600, Root, TitleBar};
 use schemars::JsonSchema;
 use semver::Version;
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 i18n!("locales", fallback = "en");
 
-actions!([About, Repository]);
+actions!([About, Repository, Open, SaveInput, SaveOutput, Exit]);
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, Action)]
 struct ChangeModel {
@@ -166,6 +169,25 @@ impl TranslateApp {
         }
     }
 
+    fn file_menu(&self, _cx: &App) -> Menu {
+        Menu {
+            name: t!("file").into(),
+            items: vec![
+                MenuItem::action(t!("open"), Open),
+                MenuItem::Separator,
+                MenuItem::submenu(Menu {
+                    name: t!("save").into(),
+                    items: vec![
+                        MenuItem::action(t!("input"), SaveInput),
+                        MenuItem::action(t!("output"), SaveOutput),
+                    ],
+                }),
+                MenuItem::Separator,
+                MenuItem::action(t!("exit"), Exit),
+            ],
+        }
+    }
+
     fn help_menu() -> Menu {
         Menu {
             name: t!("help").into(),
@@ -178,7 +200,11 @@ impl TranslateApp {
     }
 
     fn update_menu_bar(&mut self, cx: &mut Context<Self>) {
-        cx.set_menus(vec![self.model_menu(cx), Self::help_menu()]);
+        cx.set_menus(vec![
+            self.file_menu(cx),
+            self.model_menu(cx),
+            Self::help_menu(),
+        ]);
 
         self.menu_bar.update(cx, |menu_bar, cx| {
             menu_bar.reload(cx);
@@ -431,6 +457,98 @@ impl TranslateApp {
             this.swap_languages(cx);
         })
     }
+
+    fn last_directory(&mut self, cx: &mut Context<Self>) -> PathBuf {
+        self.config
+            .read(cx)
+            .last_directory()
+            .cloned()
+            .unwrap_or_else(|| PathBuf::from("."))
+    }
+
+    fn update_last_directory(&mut self, path: impl AsRef<Path>, cx: &mut Context<Self>) {
+        let path = path.as_ref();
+
+        let dir = if path.is_file()
+            && let Some(dir) = path.parent()
+        {
+            dir
+        } else if path.is_dir() {
+            path
+        } else {
+            return;
+        };
+
+        self.config.update(cx, |this, cx| {
+            this.set_last_directory(dir, cx);
+        });
+    }
+
+    fn on_action_open(&mut self, _: &Open, window: &mut Window, cx: &mut Context<Self>) {
+        let path = cx.prompt_for_paths(PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: false,
+            prompt: None,
+        });
+
+        let input_editor = self.input_editor.clone();
+
+        cx.spawn_in(window, async move |this, window| {
+            let path = path.await.ok()?.ok()??.into_iter().next()?;
+
+            this.update(window, |this, cx| {
+                this.update_last_directory(path.as_path(), cx);
+            })
+            .ok();
+
+            window
+                .update(|window, cx| match fs::read_to_string(&path) {
+                    Ok(text) => {
+                        input_editor.update(cx, |this, cx| {
+                            this.state.update(cx, |this, cx| {
+                                this.set_value(text, window, cx);
+                            })
+                        });
+                    }
+                    Err(err) => {
+                        eprintln!("{err}")
+                    }
+                })
+                .ok()
+        })
+        .detach();
+    }
+
+    fn save(&mut self, text: impl Into<String>, cx: &mut Context<Self>) {
+        let dir = self.last_directory(cx);
+        let path = cx.prompt_for_new_path(dir.as_path(), None);
+        let text = text.into();
+
+        cx.spawn(async move |this, cx| {
+            let path = path.await.ok()?.ok()??;
+
+            this.update(cx, |this, cx| {
+                this.update_last_directory(path.as_path(), cx);
+            })
+            .ok();
+
+            fs::write(path, text).ok()
+        })
+        .detach();
+    }
+
+    fn on_action_save_input(&mut self, _: &SaveInput, _: &mut Window, cx: &mut Context<Self>) {
+        self.save(self.input_editor.read(cx).text(cx), cx);
+    }
+
+    fn on_action_save_output(&mut self, _: &SaveOutput, _: &mut Window, cx: &mut Context<Self>) {
+        self.save(self.output_editor.read(cx).text(cx), cx);
+    }
+
+    fn on_action_exit(&mut self, _: &Exit, _: &mut Window, cx: &mut Context<Self>) {
+        cx.quit();
+    }
 }
 
 impl Render for TranslateApp {
@@ -442,6 +560,10 @@ impl Render for TranslateApp {
             .on_action(cx.listener(Self::on_action_about))
             .on_action(cx.listener(Self::on_action_change_model))
             .on_action(cx.listener(Self::on_action_change_locale))
+            .on_action(cx.listener(Self::on_action_open))
+            .on_action(cx.listener(Self::on_action_save_input))
+            .on_action(cx.listener(Self::on_action_save_output))
+            .on_action(cx.listener(Self::on_action_exit))
             .w_full()
             .h_full()
             .flex()

@@ -4,6 +4,8 @@ use icu_locale::{locale, DataLocale, Locale, LocaleFallbacker};
 use rust_i18n::set_locale;
 use serde::{Deserialize, Serialize};
 use std::mem;
+use std::path::{Path, PathBuf};
+use dirs::{document_dir, home_dir};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -15,6 +17,7 @@ pub struct Config {
     target_language: Option<String>,
 
     model: Option<String>,
+    last_directory: Option<PathBuf>,
 }
 
 impl Default for Config {
@@ -25,6 +28,7 @@ impl Default for Config {
             source_language: Some("zh-Hans".to_owned()),
             target_language: Some("en".to_owned()),
             model: None,
+            last_directory: None,
         }
     }
 }
@@ -53,7 +57,16 @@ impl Config {
 
     pub fn init(&mut self, cx: &mut Context<Self>) {
         self.init_locale();
-        cx.emit(ConfigEvent::LocaleChange)
+        cx.emit(ConfigEvent::LocaleChange);
+
+        self.init_last_directory();
+        cx.emit(ConfigEvent::LastDirectoryChange);
+    }
+
+    fn init_last_directory(&mut self) {
+        if self.last_directory.is_none() {
+            self.last_directory = document_dir().or_else(home_dir)
+        }
     }
 
     fn get_locale(&self) -> Locale {
@@ -152,6 +165,16 @@ impl Config {
 
         cx.emit(ConfigEvent::ModelChange);
     }
+
+    pub fn last_directory(&self) -> Option<&PathBuf> {
+        self.last_directory.as_ref()
+    }
+
+    pub fn set_last_directory(&mut self, path: impl AsRef<Path>, cx: &mut Context<Self>) {
+        self.last_directory = Some(path.as_ref().to_path_buf());
+
+        cx.emit(ConfigEvent::LastDirectoryChange);
+    }
 }
 
 pub enum ConfigEvent {
@@ -163,6 +186,7 @@ pub enum ConfigEvent {
         target_language: Option<String>,
     },
     ModelChange,
+    LastDirectoryChange
 }
 
 impl EventEmitter<ConfigEvent> for Config {}
