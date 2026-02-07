@@ -12,6 +12,7 @@ mod input_editor;
 mod language;
 mod language_selector;
 mod locale_selector;
+mod menu;
 mod ollama;
 mod ollama_service;
 mod output_editor;
@@ -33,8 +34,7 @@ use crate::status_bar::StatusBar;
 use futures_util::StreamExt;
 use gpui::{
     actions, div, prelude::*, px, size, Action, App, Application, Bounds,
-    ClickEvent, Entity, Focusable, Menu, MenuItem, PathPromptOptions, Task, Window, WindowBounds,
-    WindowOptions,
+    ClickEvent, Entity, Focusable, PathPromptOptions, Task, Window, WindowBounds, WindowOptions,
 };
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::input::{InputEvent, InputState};
@@ -128,57 +128,14 @@ impl TranslateApp {
         ollama_service
     }
 
-    fn model_menu(&self, cx: &App) -> Menu {
-        Menu {
-            name: t!("model").into(),
-            items: self
-                .ollama_service
-                .read(cx)
-                .models
-                .iter()
-                .map(|model| {
-                    MenuItem::action(model, ChangeModel::new(model))
-                        .checked(self.config.read(cx).model() == Some(model))
-                })
-                .collect::<Vec<_>>(),
-        }
-    }
-
-    fn file_menu(&self, _cx: &App) -> Menu {
-        Menu {
-            name: t!("file").into(),
-            items: vec![
-                MenuItem::action(t!("open"), Open),
-                MenuItem::Separator,
-                MenuItem::submenu(Menu {
-                    name: t!("save").into(),
-                    items: vec![
-                        MenuItem::action(t!("input"), SaveInput),
-                        MenuItem::action(t!("output"), SaveOutput),
-                    ],
-                }),
-                MenuItem::Separator,
-                MenuItem::action(t!("exit"), Exit),
-            ],
-        }
-    }
-
-    fn help_menu() -> Menu {
-        Menu {
-            name: t!("help").into(),
-            items: vec![
-                MenuItem::action(t!("repository"), Repository),
-                MenuItem::Separator,
-                MenuItem::action(t!("about"), About),
-            ],
-        }
-    }
-
     fn update_menu_bar(&mut self, cx: &mut Context<Self>) {
         cx.set_menus(vec![
-            self.file_menu(cx),
-            self.model_menu(cx),
-            Self::help_menu(),
+            menu::file_menu(),
+            menu::model_menu(
+                &self.ollama_service.read(cx).models,
+                self.config.read(cx).model(),
+            ),
+            menu::help_menu(),
         ]);
 
         self.menu_bar.update(cx, |menu_bar, cx| {
