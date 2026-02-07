@@ -13,6 +13,7 @@ mod language;
 mod language_selector;
 mod locale_selector;
 mod ollama;
+mod ollama_service;
 mod output_editor;
 mod prompt;
 mod status_bar;
@@ -25,6 +26,7 @@ use crate::input_editor::InputEditor;
 use crate::language_selector::LanguageSelector;
 use crate::locale_selector::{ChangeLocale, LocaleSelector};
 use crate::ollama::{generate, GenerateRequest};
+use crate::ollama_service::{OllamaService, OllamaServiceEvent};
 use crate::output_editor::OutputEditor;
 use crate::prompt::Prompt;
 use crate::status_bar::StatusBar;
@@ -39,7 +41,6 @@ use gpui_component::input::{InputEvent, InputState};
 use gpui_component::menu::AppMenuBar;
 use gpui_component::{gray_600, Root, TitleBar, WindowExt};
 use schemars::JsonSchema;
-use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -62,6 +63,7 @@ impl ChangeModel {
 
 struct TranslateApp {
     config: Entity<Config>,
+    ollama_service: Entity<OllamaService>,
 
     locale_selector: Entity<LocaleSelector>,
 
@@ -74,9 +76,6 @@ struct TranslateApp {
     output_editor: Entity<OutputEditor>,
 
     generate: Option<Task<anyhow::Result<()>>>,
-
-    ollama_version: Option<Version>,
-    models: Vec<String>,
 }
 
 impl TranslateApp {
@@ -93,6 +92,7 @@ impl TranslateApp {
 
         TranslateApp {
             config: Self::setup_config(window, cx),
+            ollama_service: Self::setup_ollama_service(cx),
             locale_selector,
             source_language_selector: Self::setup_source_language_selector(window, cx),
             target_language_selector: Self::setup_target_language_selector(window, cx),
@@ -100,67 +100,40 @@ impl TranslateApp {
             input_editor,
             output_editor,
             generate: None,
-            ollama_version: None,
-            models: Vec::new(),
         }
     }
 
-    fn check_ollama_version(&mut self, cx: &mut Context<Self>) {
-        cx.spawn(async |this, cx| {
-            loop {
-                let version = ollama::version().await.ok();
+    fn setup_ollama_service(cx: &mut Context<Self>) -> Entity<OllamaService> {
+        let ollama_service = cx.new(|cx| {
+            let mut service = OllamaService::new();
+            service.start_polling(cx);
+            service
+        });
 
-                this.update(cx, |this, cx| {
-                    this.ollama_version = version;
-                    cx.notify();
-                })
-                .ok();
-
-                cx.background_executor().timer(Duration::from_mins(5)).await;
-            }
-        })
-        .detach();
-    }
-
-    fn list_models(&mut self, cx: &mut Context<Self>) {
-        cx.spawn(async |this, cx| {
-            loop {
-                let models = ollama::list().await.ok();
-
-                if let Some(models) = models {
-                    let models = models
-                        .into_iter()
-                        .filter_map(|model| {
-                            if model.name.starts_with("translategemma") {
-                                Some(model.name)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>();
-
-                    this.update(cx, |this, cx| {
-                        this.models = models;
-                        if let Some(model) = this.models.first()
-                            && this.config.read(cx).model().is_none()
-                        {
-                            this.config.update(cx, |this, cx| this.set_model(model, cx))
-                        }
-                        cx.notify();
-                    })
-                    .ok();
+        cx.subscribe(&ollama_service, |this, ollama, event, cx| match event {
+            OllamaServiceEvent::ModelsChanged => {
+                if this.config.read(cx).model().is_none()
+                    && let Some(model) = ollama.read(cx).models.first().cloned()
+                {
+                    this.config.update(cx, |this, cx| this.set_model(model, cx));
                 }
-
-                cx.background_executor().timer(Duration::from_mins(5)).await;
+                cx.notify();
+            }
+            OllamaServiceEvent::VersionChanged => {
+                cx.notify();
             }
         })
         .detach();
+
+        ollama_service
     }
 
     fn model_menu(&self, cx: &App) -> Menu {
         Menu {
             name: t!("model").into(),
             items: self
+                .ollama_service
+                .read(cx)
                 .models
                 .iter()
                 .map(|model| {
@@ -253,9 +226,6 @@ impl TranslateApp {
         let config = cx.new(|_| Config::load("TranslateGemma Desktop"));
 
         cx.observe_new(|this: &mut Self, window, cx| {
-            this.check_ollama_version(cx);
-            this.list_models(cx);
-
             let source_language_selector = this.source_language_selector.clone();
             let target_language_selector = this.target_language_selector.clone();
 
@@ -634,7 +604,7 @@ impl Render for TranslateApp {
                     .child(self.input_editor.clone())
                     .child(self.output_editor.clone()),
             )
-            .child(StatusBar::new(self.ollama_version.clone()))
+            .child(StatusBar::new(self.ollama_service.read(cx).version.clone()))
             .children(notification_layer)
             .children(dialog_layer)
     }
