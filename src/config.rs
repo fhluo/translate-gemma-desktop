@@ -1,3 +1,4 @@
+use dirs::{document_dir, home_dir};
 use gpui::{Context, EventEmitter};
 use icu_locale::fallback::{LocaleFallbackConfig, LocaleFallbackPriority};
 use icu_locale::{locale, DataLocale, Locale, LocaleFallbacker};
@@ -5,7 +6,6 @@ use rust_i18n::set_locale;
 use serde::{Deserialize, Serialize};
 use std::mem;
 use std::path::{Path, PathBuf};
-use dirs::{document_dir, home_dir};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -186,7 +186,7 @@ pub enum ConfigEvent {
         target_language: Option<String>,
     },
     ModelChange,
-    LastDirectoryChange
+    LastDirectoryChange,
 }
 
 impl EventEmitter<ConfigEvent> for Config {}

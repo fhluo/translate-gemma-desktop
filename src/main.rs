@@ -7,6 +7,7 @@ mod about;
 mod assets;
 mod config;
 mod editor;
+mod error;
 mod input_editor;
 mod language;
 mod language_selector;
@@ -19,6 +20,7 @@ mod status_bar;
 use crate::about::open_about_dialog;
 use crate::assets::{Assets, Icons};
 use crate::config::{Config, ConfigEvent};
+use crate::error::show_io_error;
 use crate::input_editor::InputEditor;
 use crate::language_selector::LanguageSelector;
 use crate::locale_selector::{ChangeLocale, LocaleSelector};
@@ -35,7 +37,7 @@ use gpui::{
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::input::{InputEvent, InputState};
 use gpui_component::menu::AppMenuBar;
-use gpui_component::{gray_600, Root, TitleBar};
+use gpui_component::{gray_600, Root, TitleBar, WindowExt};
 use schemars::JsonSchema;
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -498,12 +500,12 @@ impl TranslateApp {
             let path = path.await.ok()?.ok()??.into_iter().next()?;
 
             this.update(window, |this, cx| {
-                this.update_last_directory(path.as_path(), cx);
+                this.update_last_directory(&path, cx);
             })
             .ok();
 
             window
-                .update(|window, cx| match fs::read_to_string(&path) {
+                .update(move |window, cx| match fs::read_to_string(&path) {
                     Ok(text) => {
                         input_editor.update(cx, |this, cx| {
                             this.state.update(cx, |this, cx| {
@@ -512,7 +514,7 @@ impl TranslateApp {
                         });
                     }
                     Err(err) => {
-                        eprintln!("{err}")
+                        show_io_error(t!("error.read_file"), &path, err, window, cx);
                     }
                 })
                 .ok()
@@ -520,30 +522,45 @@ impl TranslateApp {
         .detach();
     }
 
-    fn save(&mut self, text: impl Into<String>, cx: &mut Context<Self>) {
+    fn save(&mut self, text: impl Into<String>, window: &mut Window, cx: &mut Context<Self>) {
         let dir = self.last_directory(cx);
         let path = cx.prompt_for_new_path(dir.as_path(), None);
         let text = text.into();
 
-        cx.spawn(async move |this, cx| {
+        cx.spawn_in(window, async move |this, window| {
             let path = path.await.ok()?.ok()??;
 
-            this.update(cx, |this, cx| {
-                this.update_last_directory(path.as_path(), cx);
+            this.update(window, |this, cx| {
+                this.update_last_directory(&path, cx);
             })
             .ok();
 
-            fs::write(path, text).ok()
+            let result = fs::write(&path, text);
+
+            this.update_in(window, move |_, window, cx| match result {
+                Ok(_) => {
+                    window.push_notification(t!("saved-success").into_owned(), cx);
+                }
+                Err(err) => {
+                    show_io_error(t!("error.write_file"), &path, err, window, cx);
+                }
+            })
+            .ok()
         })
         .detach();
     }
 
-    fn on_action_save_input(&mut self, _: &SaveInput, _: &mut Window, cx: &mut Context<Self>) {
-        self.save(self.input_editor.read(cx).text(cx), cx);
+    fn on_action_save_input(&mut self, _: &SaveInput, window: &mut Window, cx: &mut Context<Self>) {
+        self.save(self.input_editor.read(cx).text(cx), window, cx);
     }
 
-    fn on_action_save_output(&mut self, _: &SaveOutput, _: &mut Window, cx: &mut Context<Self>) {
-        self.save(self.output_editor.read(cx).text(cx), cx);
+    fn on_action_save_output(
+        &mut self,
+        _: &SaveOutput,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.save(self.output_editor.read(cx).text(cx), window, cx);
     }
 
     fn on_action_exit(&mut self, _: &Exit, _: &mut Window, cx: &mut Context<Self>) {
@@ -554,6 +571,7 @@ impl TranslateApp {
 impl Render for TranslateApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let dialog_layer = Root::render_dialog_layer(window, cx);
+        let notification_layer = Root::render_notification_layer(window, cx);
 
         div()
             .on_action(cx.listener(Self::on_action_repository))
@@ -617,6 +635,7 @@ impl Render for TranslateApp {
                     .child(self.output_editor.clone()),
             )
             .child(StatusBar::new(self.ollama_version.clone()))
+            .children(notification_layer)
             .children(dialog_layer)
     }
 }

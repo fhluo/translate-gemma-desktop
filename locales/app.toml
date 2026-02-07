@@ -71,3 +71,23 @@ zh = "许可协议"
 [about.version]
 en = "Version"
 zh = "版本"
+
+[error]
+en = "Error"
+zh = "错误"
+
+[error.read_file]
+en = "Failed to read file"
+zh = "读取文件失败"
+
+[error.write_file]
+en = "Failed to write file"
+zh = "写入文件失败"
+
+[success]
+en = "Success"
+zh = "成功"
+
+[saved-success]
+en = "Saved successfully"
+zh = "保存成功"
